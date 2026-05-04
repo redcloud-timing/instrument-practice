@@ -116,34 +116,42 @@ class _HomeScreenState extends State<HomeScreen>
             child: Row(
               children: [
                 Expanded(
-                  flex: 3,
                   child: _DailyReadCard(
                     text: controller.dailyRead,
                     onEdit: () => _editDailyRead(context, controller.dailyRead),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: _CalendarEntryCard(
-                    onTap: () => _openCalendar(context),
+                SizedBox(
+                  width: 84,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _CalendarEntryCard(
+                          onTap: () => _openCalendar(context),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: _TodaySummaryCard(
+                          todaySeconds: todayPracticeSeconds,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DayDetailScreen(
+                                  date: AppDateUtils.dateOnly(today),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 10),
-          _TodaySummaryCard(
-            todaySeconds: todayPracticeSeconds,
-            onViewDetail: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      DayDetailScreen(date: AppDateUtils.dateOnly(today)),
-                ),
-              );
-            },
           ),
         ],
       ),
@@ -347,33 +355,30 @@ class _CalendarEntryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Icon(
                 Icons.calendar_month_outlined,
-                size: 28,
+                size: 22,
                 color: colorScheme.primary,
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${today.year}年',
-                style: Theme.of(context).textTheme.labelSmall,
+              Column(
+                children: [
+                  Text(
+                    '${today.month}月${today.day}日',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _weekday(today.weekday),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
               ),
-              Text(
-                '${today.month}月${today.day}日',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _weekday(today.weekday),
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              const SizedBox(height: 6),
               Text(
                 '查看日历',
                 style: Theme.of(
@@ -394,37 +399,51 @@ class _CalendarEntryCard extends StatelessWidget {
 }
 
 class _TodaySummaryCard extends StatelessWidget {
-  const _TodaySummaryCard({
-    required this.todaySeconds,
-    required this.onViewDetail,
-  });
+  const _TodaySummaryCard({required this.todaySeconds, required this.onTap});
 
   final int todaySeconds;
-  final VoidCallback onViewDetail;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-        child: Row(
-          children: [
-            Text('今日练习', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(width: 8),
-            Text(
-              AppDateUtils.formatDuration(todaySeconds),
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: onViewDetail,
-              icon: const Icon(Icons.note_alt_outlined, size: 16),
-              label: const Text('记录', style: TextStyle(fontSize: 13)),
-            ),
-          ],
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Icon(
+                Icons.music_note_outlined,
+                size: 22,
+                color: colorScheme.primary,
+              ),
+              Column(
+                children: [
+                  Text('今日练习', style: Theme.of(context).textTheme.labelSmall),
+                  const SizedBox(height: 1),
+                  Text(
+                    AppDateUtils.formatDuration(todaySeconds),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '记录心得',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: colorScheme.primary),
+              ),
+            ],
+          ),
         ),
       ),
     );
