@@ -54,6 +54,23 @@ class TunerController extends ChangeNotifier {
       List.unmodifiable(_loadedRecordingHistory);
   String? _loadedRecordingPath;
 
+  final List<TunerReading> _overlayHistory = [];
+  List<TunerReading> get overlayHistory => List.unmodifiable(_overlayHistory);
+  String? overlayRecordingName;
+
+  void loadOverlay(String path) {
+    _overlayHistory.clear();
+    _overlayHistory.addAll(_loadPitchHistory(path));
+    overlayRecordingName = path.split('/').last.replaceAll('.wav', '');
+    notifyListeners();
+  }
+
+  void clearOverlay() {
+    _overlayHistory.clear();
+    overlayRecordingName = null;
+    notifyListeners();
+  }
+
   Future<void> toggle() async {
     if (isRunning) {
       await stop();
@@ -71,6 +88,8 @@ class TunerController extends ChangeNotifier {
     _loadedRecordingHistory.clear();
     _loadedRecordingPath = null;
     latestRecordingPath = null;
+    _overlayHistory.clear();
+    overlayRecordingName = null;
     isRecordingPaused = false;
     _pauseStartMs = 0;
     _totalPauseOffsetMs = 0;

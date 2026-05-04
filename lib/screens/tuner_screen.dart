@@ -94,12 +94,12 @@ class TunerCanvasColors {
   }
 }
 
-const _visibleDurationMs = 8000.0;
 const _globalMinMidi = 36.0;
 const _globalMaxMidi = 108.0;
 const _noteMargin = 38.0;
-const _minMidi = 60.0;
-const _maxMidi = 84.0;
+const _defaultVisibleDurationMs = 8000.0;
+const _defaultMidiSpan = 24.0;
+const _centerMidi = 72.0; // C5
 
 class TunerScreen extends StatefulWidget {
   const TunerScreen({super.key});
@@ -112,6 +112,8 @@ class _TunerScreenState extends State<TunerScreen> {
   double _verticalOffsetSemitones = 0;
   bool _autoFollow = true;
   int? _recordingStartMs;
+  double _visibleDurationMs = _defaultVisibleDurationMs;
+  double _midiSpan = _defaultMidiSpan;
 
   @override
   void initState() {
@@ -212,15 +214,15 @@ class _TunerScreenState extends State<TunerScreen> {
                     builder: (context, constraints) {
                       final canvasH = constraints.maxHeight;
                       final canvasW = constraints.maxWidth;
-                      final pixelsPerMs =
-                          (canvasW - _noteMargin) / _visibleDurationMs;
-                      final semitonesPerPixel = (_maxMidi - _minMidi) / canvasH;
+                      final effectiveMinMidi = _centerMidi - _midiSpan / 2;
+                      final effectiveMaxMidi = _centerMidi + _midiSpan / 2;
+                      final semitonesPerPixel = _midiSpan / canvasH;
                       final historyNotEmpty = history.isNotEmpty;
 
                       return Stack(
                         children: [
                           GestureDetector(
-                            onPanUpdate: (details) {
+                            onScaleUpdate: (details) {
                               if (!historyNotEmpty ||
                                   (controller.isPlaying &&
                                       !controller.isPaused) ||
@@ -230,25 +232,62 @@ class _TunerScreenState extends State<TunerScreen> {
                               }
                               setState(() {
                                 _autoFollow = false;
-                                _scrollOffsetMs -=
-                                    details.delta.dx / pixelsPerMs;
-                                final isFrozen =
-                                    controller.isPaused ||
-                                    controller.isRecordingPaused;
-                                _scrollOffsetMs = _scrollOffsetMs.clamp(
-                                  _minScrollMs(history, baseCursorMs, isFrozen),
-                                  _maxScrollMs(history, baseCursorMs, isFrozen),
-                                );
-                                _verticalOffsetSemitones +=
-                                    details.delta.dy * semitonesPerPixel;
-                                _verticalOffsetSemitones =
-                                    _verticalOffsetSemitones.clamp(
-                                      _globalMinMidi - _minMidi,
-                                      _globalMaxMidi - _maxMidi,
-                                    );
+                                if (details.pointerCount >= 2) {
+                                  // Pinch zoom (damped for controllability)
+                                  const damping = 0.4;
+                                  final hScale =
+                                      1.0 +
+                                      (details.horizontalScale - 1.0) * damping;
+                                  final vScale =
+                                      1.0 +
+                                      (details.verticalScale - 1.0) * damping;
+                                  final newDuration =
+                                      (_visibleDurationMs / hScale).clamp(
+                                        2000.0,
+                                        30000.0,
+                                      );
+                                  _visibleDurationMs = newDuration;
+
+                                  final newSpan = (_midiSpan / vScale).clamp(
+                                    12.0,
+                                    48.0,
+                                  );
+                                  _midiSpan = newSpan;
+                                } else {
+                                  // Single finger pan
+                                  final effectivePixelsPerMs =
+                                      (canvasW - _noteMargin) /
+                                      _visibleDurationMs;
+                                  _scrollOffsetMs -=
+                                      details.focalPointDelta.dx /
+                                      effectivePixelsPerMs;
+                                  final isFrozen =
+                                      controller.isPaused ||
+                                      controller.isRecordingPaused;
+                                  _scrollOffsetMs = _scrollOffsetMs.clamp(
+                                    _minScrollMs(
+                                      history,
+                                      baseCursorMs,
+                                      isFrozen,
+                                    ),
+                                    _maxScrollMs(
+                                      history,
+                                      baseCursorMs,
+                                      isFrozen,
+                                    ),
+                                  );
+                                  _verticalOffsetSemitones +=
+                                      details.focalPointDelta.dy *
+                                      semitonesPerPixel;
+                                  _verticalOffsetSemitones =
+                                      _verticalOffsetSemitones.clamp(
+                                        _globalMinMidi - effectiveMinMidi,
+                                        _globalMaxMidi - effectiveMaxMidi,
+                                      );
+                                }
                               });
                             },
-                            onPanEnd: (details) {
+                            onScaleEnd: (details) {
                               if (_scrollOffsetMs < 1) {
                                 setState(() {
                                   _scrollOffsetMs = 0;
@@ -274,6 +313,9 @@ class _TunerScreenState extends State<TunerScreen> {
                                     ? history.first.timestampMillis
                                     : null,
                                 colors: canvasColors,
+                                minMidi: effectiveMinMidi,
+                                maxMidi: effectiveMaxMidi,
+                                overlayHistory: controller.overlayHistory,
                               ),
                               size: Size.infinite,
                             ),
@@ -307,6 +349,16 @@ class _TunerScreenState extends State<TunerScreen> {
                                     _verticalOffsetSemitones = 0;
                                   });
                                 },
+                              ),
+                            ),
+                          if (controller.overlayHistory.isNotEmpty &&
+                              !controller.isRunning)
+                            Positioned(
+                              left: 12,
+                              top: 12,
+                              child: _OverlayChip(
+                                name: controller.overlayRecordingName ?? '录音',
+                                onClear: () => controller.clearOverlay(),
                               ),
                             ),
                           if (hasLoadedRecording && history.isEmpty)
@@ -639,6 +691,14 @@ class _TopBar extends StatelessWidget {
                       ),
                   ],
                 ),
+                const SizedBox(height: 4),
+                _CentsIndicatorBar(
+                  cents: hasPitch ? cents : 0,
+                  hasPitch: hasPitch,
+                  inTuneColor: colorScheme.primary,
+                  offColor: colorScheme.error,
+                  trackColor: colorScheme.outlineVariant,
+                ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
@@ -664,7 +724,112 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _MicButton extends StatelessWidget {
+class _CentsIndicatorBar extends StatelessWidget {
+  const _CentsIndicatorBar({
+    required this.cents,
+    required this.hasPitch,
+    required this.inTuneColor,
+    required this.offColor,
+    required this.trackColor,
+  });
+
+  final int cents;
+  final bool hasPitch;
+  final Color inTuneColor;
+  final Color offColor;
+  final Color trackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 6,
+      child: CustomPaint(
+        size: const Size(double.infinity, 6),
+        painter: _CentsIndicatorPainter(
+          cents: cents,
+          hasPitch: hasPitch,
+          inTuneColor: inTuneColor,
+          offColor: offColor,
+          trackColor: trackColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _CentsIndicatorPainter extends CustomPainter {
+  _CentsIndicatorPainter({
+    required this.cents,
+    required this.hasPitch,
+    required this.inTuneColor,
+    required this.offColor,
+    required this.trackColor,
+  });
+
+  final int cents;
+  final bool hasPitch;
+  final Color inTuneColor;
+  final Color offColor;
+  final Color trackColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final centerY = h / 2;
+    final trackRect = RRect.fromLTRBR(0, 0, w, h, Radius.circular(centerY));
+
+    // Background track
+    canvas.drawRRect(
+      trackRect,
+      Paint()..color = trackColor.withValues(alpha: 0.3),
+    );
+
+    if (!hasPitch) return;
+
+    // Gradient: center green → edges yellow/red
+    final gradientPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          offColor,
+          offColor.withValues(alpha: 0.7),
+          inTuneColor.withValues(alpha: 0.6),
+          inTuneColor,
+          inTuneColor.withValues(alpha: 0.6),
+          offColor.withValues(alpha: 0.7),
+          offColor,
+        ],
+        stops: const [0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawRRect(trackRect, gradientPaint);
+
+    // Center marker
+    final centerX = w / 2;
+    canvas.drawLine(
+      Offset(centerX, 0),
+      Offset(centerX, h),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.8)
+        ..strokeWidth = 1.5,
+    );
+
+    // Current cents position dot (clamp to -50..+50)
+    final clampedCents = cents.clamp(-50, 50);
+    final dotX = centerX + (clampedCents / 50.0) * centerX;
+    canvas.drawCircle(
+      Offset(dotX, centerY),
+      centerY + 1,
+      Paint()..color = Colors.white,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CentsIndicatorPainter oldDelegate) {
+    return oldDelegate.cents != cents || oldDelegate.hasPitch != hasPitch;
+  }
+}
+
+class _MicButton extends StatefulWidget {
   const _MicButton({
     required this.isRunning,
     required this.isBusy,
@@ -676,36 +841,170 @@ class _MicButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_MicButton> createState() => _MicButtonState();
+}
+
+class _MicButtonState extends State<_MicButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _pulseAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.12,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MicButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isRunning != widget.isRunning ||
+        oldWidget.isBusy != widget.isBusy) {
+      _syncAnimation();
+    }
+  }
+
+  void _syncAnimation() {
+    if (widget.isRunning && !widget.isBusy) {
+      _pulseCtrl.repeat(reverse: true);
+    } else {
+      _pulseCtrl.stop();
+      _pulseCtrl.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final btnColor = widget.isRunning ? colorScheme.error : colorScheme.primary;
+    final ringColor = widget.isRunning
+        ? colorScheme.error
+        : colorScheme.primary;
+
     return SizedBox(
-      width: 52,
-      height: 52,
-      child: Material(
-        color: isRunning
-            ? Theme.of(context).colorScheme.error
-            : Theme.of(context).colorScheme.primary,
-        shape: const CircleBorder(),
-        elevation: 2,
-        child: InkWell(
-          onTap: isBusy ? null : onTap,
-          customBorder: const CircleBorder(),
-          child: Center(
-            child: isBusy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
+      width: 60,
+      height: 60,
+      child: AnimatedBuilder(
+        animation: _pulseAnim,
+        builder: (context, child) {
+          final scale = _pulseAnim.value;
+          final ringOpacity = widget.isRunning
+              ? 0.2 * (scale - 1.0) / 0.12
+              : 0.0;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Breathing ring
+              if (widget.isRunning && !widget.isBusy)
+                Transform.scale(
+                  scale: scale * 1.15,
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: ringColor.withValues(alpha: ringOpacity),
+                        width: 2.5,
+                      ),
                     ),
-                  )
-                : Icon(
-                    isRunning ? Icons.stop : Icons.mic,
-                    color: Colors.white,
-                    size: 26,
                   ),
+                ),
+              // Main button
+              Transform.scale(
+                scale: scale,
+                child: SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Material(
+                    color: btnColor,
+                    shape: const CircleBorder(),
+                    elevation: 2,
+                    child: InkWell(
+                      onTap: widget.isBusy ? null : widget.onTap,
+                      customBorder: const CircleBorder(),
+                      child: Center(
+                        child: widget.isBusy
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Icon(
+                                widget.isRunning ? Icons.stop : Icons.mic,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OverlayChip extends StatelessWidget {
+  const _OverlayChip({required this.name, required this.onClear});
+
+  final String name;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.compare_arrows,
+            size: 14,
+            color: Theme.of(context).colorScheme.primary,
           ),
-        ),
+          const SizedBox(width: 4),
+          Text(
+            '对比: $name',
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: onClear,
+            child: Icon(
+              Icons.close,
+              size: 14,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
       ),
     );
   }

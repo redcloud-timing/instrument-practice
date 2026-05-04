@@ -6,8 +6,6 @@ import '../../models/musical_scale.dart';
 import '../../models/tuner_reading.dart';
 import '../tuner_screen.dart';
 
-const _minMidi = 60.0;
-const _maxMidi = 84.0;
 const _noteMargin = 38.0;
 
 class PlaybackPositionLine extends StatelessWidget {
@@ -248,6 +246,14 @@ class TimeAxisPainter extends CustomPainter {
   }
 }
 
+class _PitchPoint {
+  const _PitchPoint(this.x, this.y, this.reading, this.midi);
+  final double x;
+  final double y;
+  final TunerReading reading;
+  final double midi;
+}
+
 class PitchCanvasPainter extends CustomPainter {
   PitchCanvasPainter({
     required this.history,
@@ -262,6 +268,10 @@ class PitchCanvasPainter extends CustomPainter {
     required this.playbackPositionMs,
     required this.recordingFirstMs,
     required this.colors,
+    required this.minMidi,
+    required this.maxMidi,
+    this.overlayHistory = const [],
+    this.overlayColor,
   });
 
   final List<TunerReading> history;
@@ -276,9 +286,13 @@ class PitchCanvasPainter extends CustomPainter {
   final int playbackPositionMs;
   final int? recordingFirstMs;
   final TunerCanvasColors colors;
+  final double minMidi;
+  final double maxMidi;
+  final List<TunerReading> overlayHistory;
+  final Color? overlayColor;
 
-  double get _effMinMidi => _minMidi + verticalOffsetSemitones;
-  double get _effMaxMidi => _maxMidi + verticalOffsetSemitones;
+  double get _effMinMidi => minMidi + verticalOffsetSemitones;
+  double get _effMaxMidi => maxMidi + verticalOffsetSemitones;
   double get _effSemitones => _effMaxMidi - _effMinMidi;
 
   @override
@@ -298,7 +312,10 @@ class PitchCanvasPainter extends CustomPainter {
     }
 
     _drawGrid(canvas, w, h);
-    _drawPitchDots(canvas, w, h, cursor);
+    if (overlayHistory.isNotEmpty && !isRunning) {
+      _drawOverlayDots(canvas, w, h, cursor);
+    }
+    _drawPitchTrace(canvas, w, h, cursor);
     _drawScaleLabel(canvas, w);
   }
 
@@ -418,11 +435,13 @@ class PitchCanvasPainter extends CustomPainter {
     tp.paint(canvas, Offset(w - tp.width - 6, 4));
   }
 
-  void _drawPitchDots(Canvas canvas, double w, double h, int cursor) {
+  void _drawPitchTrace(Canvas canvas, double w, double h, int cursor) {
     final noteMargin = _noteMargin;
     final plotWidth = w - noteMargin;
     final leftEdge = cursor - visibleDurationMs;
 
+    // Collect visible points with precomputed coordinates
+    final points = <_PitchPoint>[];
     for (final reading in history) {
       if (!reading.hasPitch) continue;
       if (reading.timestampMillis < leftEdge) continue;
@@ -434,12 +453,68 @@ class PitchCanvasPainter extends CustomPainter {
       final normalized =
           (midi - _effMinMidi).clamp(0.0, _effSemitones) / _effSemitones;
       final y = h - normalized * h;
+      points.add(_PitchPoint(x, y, reading, midi));
+    }
 
-      final dotColor = _dotColor(
-        reading.cents.abs().toDouble(),
-        reading.clarity,
+    if (points.isEmpty) return;
+
+    // Draw connecting lines first (under dots)
+    final linePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    for (var i = 1; i < points.length; i++) {
+      final prev = points[i - 1];
+      final curr = points[i];
+
+      // Only connect if both have sufficient clarity and pitch is close
+      if (prev.reading.clarity < 0.3 || curr.reading.clarity < 0.3) continue;
+      if ((prev.midi - curr.midi).abs() > 3.0) continue;
+
+      final color = _dotColor(
+        curr.reading.cents.abs().toDouble(),
+        curr.reading.clarity < prev.reading.clarity
+            ? curr.reading.clarity
+            : prev.reading.clarity,
       );
-      canvas.drawCircle(Offset(x, y), 2.5, Paint()..color = dotColor);
+      linePaint.color = color.withValues(alpha: 0.4);
+      canvas.drawLine(
+        Offset(prev.x, prev.y),
+        Offset(curr.x, curr.y),
+        linePaint,
+      );
+    }
+
+    // Draw dots on top
+    for (final p in points) {
+      final dotColor = _dotColor(
+        p.reading.cents.abs().toDouble(),
+        p.reading.clarity,
+      );
+      final radius = 1.0 + 1.8 * p.reading.clarity.clamp(0.0, 1.0);
+      canvas.drawCircle(Offset(p.x, p.y), radius, Paint()..color = dotColor);
+    }
+  }
+
+  void _drawOverlayDots(Canvas canvas, double w, double h, int cursor) {
+    final noteMargin = _noteMargin;
+    final plotWidth = w - noteMargin;
+    final leftEdge = cursor - visibleDurationMs;
+    final dotColor = (overlayColor ?? colors.dotInTune).withValues(alpha: 0.25);
+
+    for (final reading in overlayHistory) {
+      if (!reading.hasPitch) continue;
+      if (reading.timestampMillis < leftEdge) continue;
+      if (reading.timestampMillis > cursor) continue;
+
+      final age = (cursor - reading.timestampMillis) / visibleDurationMs;
+      final x = noteMargin + plotWidth * (1 - age);
+      final midi = 69 + 12 * math.log(reading.frequency / 440) / math.ln2;
+      final normalized =
+          (midi - _effMinMidi).clamp(0.0, _effSemitones) / _effSemitones;
+      final y = h - normalized * h;
+      canvas.drawCircle(Offset(x, y), 1.5, Paint()..color = dotColor);
     }
   }
 
@@ -462,6 +537,9 @@ class PitchCanvasPainter extends CustomPainter {
         oldDelegate.centerMidi != centerMidi ||
         oldDelegate.hasLoadedRecording != hasLoadedRecording ||
         oldDelegate.isPlaying != isPlaying ||
-        oldDelegate.playbackPositionMs != playbackPositionMs;
+        oldDelegate.playbackPositionMs != playbackPositionMs ||
+        oldDelegate.overlayHistory != overlayHistory ||
+        oldDelegate.minMidi != minMidi ||
+        oldDelegate.maxMidi != maxMidi;
   }
 }

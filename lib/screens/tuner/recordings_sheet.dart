@@ -106,6 +106,18 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
                     ),
                   ),
                   IconButton(
+                    tooltip: '叠加对比',
+                    onPressed: () {
+                      controller.loadOverlay(rec.path);
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.compare_arrows, size: 20),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(36, 36),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  IconButton(
                     onPressed: () => controller.deleteRecording(rec.path),
                     icon: const Icon(Icons.delete_outline, size: 20),
                     style: IconButton.styleFrom(
