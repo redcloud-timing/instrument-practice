@@ -4,67 +4,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/musical_scale.dart';
 import '../models/tuner_reading.dart';
+import '../models/tuner_recording.dart';
 import '../services/tuner_service.dart';
-
-const _noteNames = [
-  'C',
-  'C#',
-  'D',
-  'D#',
-  'E',
-  'F',
-  'F#',
-  'G',
-  'G#',
-  'A',
-  'A#',
-  'B',
-];
-
-enum ScaleType { major, minor }
-
-class MusicalScale {
-  const MusicalScale({required this.root, required this.type});
-
-  final String root;
-  final ScaleType type;
-
-  static const _majorIntervals = [0, 2, 4, 5, 7, 9, 11];
-  static const _minorIntervals = [0, 2, 3, 5, 7, 8, 10];
-
-  String get label => '$root ${type == ScaleType.major ? 'Major' : 'Minor'}';
-
-  Set<int> noteIndices() {
-    final rootIdx = _noteNames.indexOf(root);
-    if (rootIdx < 0) return {0, 2, 4, 5, 7, 9, 11};
-    final intervals = type == ScaleType.major
-        ? _majorIntervals
-        : _minorIntervals;
-    return intervals.map((i) => (rootIdx + i) % 12).toSet();
-  }
-
-  Map<String, dynamic> toJson() => {'root': root, 'type': type.name};
-
-  factory MusicalScale.fromJson(Map<String, dynamic> json) {
-    return MusicalScale(
-      root: json['root'] as String? ?? 'C',
-      type: ScaleType.values.firstWhere(
-        (t) => t.name == json['type'],
-        orElse: () => ScaleType.major,
-      ),
-    );
-  }
-
-  static List<MusicalScale> allScales() {
-    final list = <MusicalScale>[];
-    for (final root in _noteNames) {
-      list.add(MusicalScale(root: root, type: ScaleType.major));
-      list.add(MusicalScale(root: root, type: ScaleType.minor));
-    }
-    return list;
-  }
-}
 
 class TunerController extends ChangeNotifier {
   TunerController(this._tunerService);
@@ -237,7 +180,9 @@ class TunerController extends ChangeNotifier {
           )
           .toList();
       file.writeAsStringSync(jsonEncode(list));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('TunerController._savePitchHistory error: $e');
+    }
   }
 
   List<TunerReading> _loadPitchHistory(String wavPath) {
@@ -250,7 +195,8 @@ class TunerController extends ChangeNotifier {
         final m = Map<String, Object?>.from(item as Map);
         return TunerReading.fromMap(m);
       }).toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('TunerController._loadPitchHistory error: $e');
       return [];
     }
   }
@@ -286,7 +232,9 @@ class TunerController extends ChangeNotifier {
         final jsonPath = path.replaceAll('.wav', '.json');
         final file = File(jsonPath);
         if (file.existsSync()) file.deleteSync();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('TunerController.deleteRecording json cleanup error: $e');
+      }
       _recordings.removeWhere((r) => r.path == path);
       if (_loadedRecordingPath == path) {
         _loadedRecordingHistory.clear();

@@ -27,11 +27,6 @@ class MetronomeSoundService {
           soundStyle != MetronomeSoundStyle.silent) {
         await SystemSound.play(SystemSoundType.click);
       }
-    } on MissingPluginException {
-      if (role != MetronomeSoundRole.rest &&
-          soundStyle != MetronomeSoundStyle.silent) {
-        await SystemSound.play(SystemSoundType.click);
-      }
     }
   }
 }

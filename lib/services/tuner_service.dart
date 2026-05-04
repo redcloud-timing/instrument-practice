@@ -3,27 +3,12 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import '../models/tuner_reading.dart';
+import '../models/tuner_recording.dart';
 
 class TunerException implements Exception {
   const TunerException(this.message);
 
   final String message;
-}
-
-class TunerRecording {
-  const TunerRecording({
-    required this.path,
-    required this.name,
-    required this.sizeBytes,
-    required this.lastModified,
-    required this.durationSeconds,
-  });
-
-  final String path;
-  final String name;
-  final int sizeBytes;
-  final int lastModified;
-  final int durationSeconds;
 }
 
 class TunerService {
@@ -54,8 +39,6 @@ class TunerService {
       await _methodChannel.invokeMethod<void>('start');
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '启动调音器失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持调音器。');
     }
   }
 
@@ -65,8 +48,6 @@ class TunerService {
       return result?['recordingPath'] as String?;
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '停止调音器失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持调音器。');
     }
   }
 
@@ -86,8 +67,6 @@ class TunerService {
       }).toList();
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '获取录音列表失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音管理。');
     }
   }
 
@@ -98,8 +77,6 @@ class TunerService {
       });
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '删除录音失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音管理。');
     }
   }
 
@@ -111,8 +88,6 @@ class TunerService {
       return result?['name'] as String?;
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '播放录音失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音播放。');
     }
   }
 
@@ -121,8 +96,6 @@ class TunerService {
       await _methodChannel.invokeMethod<void>('stopPlayback');
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '停止播放失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音播放。');
     }
   }
 
@@ -131,8 +104,6 @@ class TunerService {
       await _methodChannel.invokeMethod<void>('pausePlayback');
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '暂停播放失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音播放。');
     }
   }
 
@@ -141,8 +112,6 @@ class TunerService {
       await _methodChannel.invokeMethod<void>('resumePlayback');
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '继续播放失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音播放。');
     }
   }
 
@@ -153,8 +122,6 @@ class TunerService {
       });
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '跳转播放失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音播放。');
     }
   }
 
@@ -163,8 +130,6 @@ class TunerService {
       await _methodChannel.invokeMethod<void>('pauseRecording');
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '暂停录音失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持录音暂停。');
     }
   }
 
@@ -173,8 +138,6 @@ class TunerService {
       await _methodChannel.invokeMethod<void>('resumeRecording');
     } on PlatformException catch (error) {
       throw TunerException(error.message ?? '继续录音失败。');
-    } on MissingPluginException {
-      throw const TunerException('当前设备不支持恢复录音。');
     }
   }
 }

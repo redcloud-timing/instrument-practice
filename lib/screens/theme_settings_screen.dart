@@ -58,26 +58,13 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
       return;
     }
 
-    final color = _parseHex(text);
+    final color = ThemeController.parseHex(text);
     if (color == null) {
       setState(() => _hexError = '无效颜色代码，例如：99FF99');
       return;
     }
 
     _applyColor(color);
-  }
-
-  Color? _parseHex(String hex) {
-    try {
-      final cleaned = hex.replaceFirst('#', '');
-      if (cleaned.length == 6) {
-        return Color(int.parse('FF$cleaned', radix: 16));
-      }
-      if (cleaned.length == 8) {
-        return Color(int.parse(cleaned, radix: 16));
-      }
-    } catch (_) {}
-    return null;
   }
 
   @override

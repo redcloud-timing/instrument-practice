@@ -29,8 +29,6 @@ class DocumentLibraryService {
       );
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '选择资料失败。');
-    } on MissingPluginException {
-      throw const DocumentLibraryException('当前设备不支持文件选择。');
     }
   }
 
@@ -45,8 +43,6 @@ class DocumentLibraryService {
       return result;
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '读取图片失败。');
-    } on MissingPluginException {
-      throw const DocumentLibraryException('当前设备不支持内置图片阅读。');
     }
   }
 
@@ -58,8 +54,6 @@ class DocumentLibraryService {
       return result ?? 0;
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '读取 PDF 失败。');
-    } on MissingPluginException {
-      throw const DocumentLibraryException('当前设备不支持内置 PDF 阅读。');
     }
   }
 
@@ -80,8 +74,6 @@ class DocumentLibraryService {
       return result;
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '渲染 PDF 失败。');
-    } on MissingPluginException {
-      throw const DocumentLibraryException('当前设备不支持内置 PDF 阅读。');
     }
   }
 
@@ -93,8 +85,6 @@ class DocumentLibraryService {
       });
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '打开资料失败。');
-    } on MissingPluginException {
-      throw const DocumentLibraryException('当前设备不支持打开资料。');
     }
   }
 }

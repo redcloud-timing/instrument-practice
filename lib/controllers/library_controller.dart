@@ -11,6 +11,7 @@ class LibraryController extends ChangeNotifier {
 
   final DatabaseService _databaseService;
   final DocumentLibraryService _documentService;
+  DocumentLibraryService get documentService => _documentService;
 
   static const _documentsKey = 'library_documents_v1';
   static const _maxItems = 60;
@@ -53,7 +54,8 @@ class LibraryController extends ChangeNotifier {
                 LibraryItem.fromMap(Map<String, dynamic>.from(value)),
           ].where((item) => item.uri.isNotEmpty).toList();
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('LibraryController.init decode error: $e');
         items = [];
       }
     }
@@ -72,7 +74,7 @@ class LibraryController extends ChangeNotifier {
       final picked = await _documentService.pickDocument();
       if (picked == null) return null;
 
-      final existing = _findByUri(picked.uri);
+      final existing = itemByUri(picked.uri);
       final now = DateTime.now().toIso8601String();
       final next = picked.copyWith(
         addedAtIso: existing?.addedAtIso ?? now,
@@ -159,13 +161,6 @@ class LibraryController extends ChangeNotifier {
 
     notifyListeners();
     await _save();
-  }
-
-  LibraryItem? _findByUri(String uri) {
-    for (final item in items) {
-      if (item.uri == uri) return item;
-    }
-    return null;
   }
 
   void _trimItems() {

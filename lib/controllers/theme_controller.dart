@@ -18,7 +18,7 @@ class ThemeController extends ChangeNotifier {
   Future<void> init() async {
     final saved = await _databaseService.getSetting(_themeColorKey);
     if (saved != null && saved.isNotEmpty) {
-      final color = _parseColor(saved);
+      final color = parseHex(saved);
       if (color != null) {
         _themeColor = color;
       }
@@ -41,7 +41,7 @@ class ThemeController extends ChangeNotifier {
     return '#$a$r$g$b'.toUpperCase();
   }
 
-  Color? _parseColor(String hex) {
+  static Color? parseHex(String hex) {
     try {
       final cleaned = hex.replaceFirst('#', '');
       if (cleaned.length == 6) {
@@ -50,7 +50,9 @@ class ThemeController extends ChangeNotifier {
       if (cleaned.length == 8) {
         return Color(int.parse(cleaned, radix: 16));
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ThemeController.parseHex error: $e');
+    }
     return null;
   }
 }

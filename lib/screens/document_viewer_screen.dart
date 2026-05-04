@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../controllers/library_controller.dart';
 import '../models/library_item.dart';
-import '../services/document_library_service.dart';
 import 'text_edit_screen.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
@@ -18,7 +17,6 @@ class DocumentViewerScreen extends StatefulWidget {
 }
 
 class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
-  final DocumentLibraryService _documentService = DocumentLibraryService();
   final Map<String, Future<Uint8List>> _pdfPageCache = {};
 
   String? _loadedUri;
@@ -28,14 +26,11 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   void _prepareDocument(LibraryItem item) {
     if (_loadedUri == item.uri) return;
 
+    final docService = context.read<LibraryController>().documentService;
     _loadedUri = item.uri;
     _pdfPageCache.clear();
-    _pdfPageCountFuture = item.isPdf
-        ? _documentService.pdfPageCount(item)
-        : null;
-    _imageBytesFuture = item.isImage
-        ? _documentService.loadImageBytes(item)
-        : null;
+    _pdfPageCountFuture = item.isPdf ? docService.pdfPageCount(item) : null;
+    _imageBytesFuture = item.isImage ? docService.loadImageBytes(item) : null;
   }
 
   Future<Uint8List> _loadPdfPage({
@@ -54,7 +49,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       _pdfPageCache.remove(_pdfPageCache.keys.first);
     }
 
-    final future = _documentService.renderPdfPage(
+    final docService = context.read<LibraryController>().documentService;
+    final future = docService.renderPdfPage(
       item: item,
       pageIndex: pageIndex,
       maxWidth: renderWidth,

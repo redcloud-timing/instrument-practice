@@ -84,18 +84,13 @@ class MetronomeController extends ChangeNotifier {
 
   Future<void> init() async {
     final rawSettings = await _databaseService.getSetting(_settingsKey);
-    final legacySettings = rawSettings == null
-        ? await _databaseService.getSetting('metronome_settings_v3') ??
-              await _databaseService.getSetting('metronome_settings_v2')
-        : null;
 
-    final settings = rawSettings ?? legacySettings;
-
-    if (settings != null) {
+    if (rawSettings != null) {
       try {
-        final map = jsonDecode(settings) as Map<String, dynamic>;
+        final map = jsonDecode(rawSettings) as Map<String, dynamic>;
         _loadFromMap(map);
-      } catch (_) {
+      } catch (e) {
+        debugPrint('MetronomeController.init error: $e');
         selectedPresetName = customPresetName;
       }
     }
@@ -458,8 +453,6 @@ class MetronomeController extends ChangeNotifier {
     final subdivisionPatternValues = map['subdivisionPatterns'];
     if (subdivisionPatternValues is List) {
       subdivisionPatterns = _parseSubdivisionPatterns(subdivisionPatternValues);
-    } else {
-      subdivisionPatterns = _subdivisionPatternsFromLegacyMap(map);
     }
 
     _ensureValidPattern();
@@ -497,26 +490,6 @@ class MetronomeController extends ChangeNotifier {
           .map((value) => BeatType.fromValue(value is int ? value : 1))
           .toList();
     }).toList();
-  }
-
-  List<List<BeatType>> _subdivisionPatternsFromLegacyMap(
-    Map<String, dynamic> map,
-  ) {
-    final subdivisionValues = map['beatSubdivisions'];
-    if (subdivisionValues is List) {
-      return subdivisionValues.take(maxBeatsPerBar).map((value) {
-        final totalTicks = (value is int ? value : 1).clamp(1, 5).toInt();
-        return [for (var i = 1; i < totalTicks; i++) BeatType.normal];
-      }).toList();
-    }
-
-    final oldGlobalSubdivision = (map['subdivision'] as int? ?? 1)
-        .clamp(1, 5)
-        .toInt();
-    return [
-      for (var i = 0; i < beatPattern.length; i++)
-        [for (var dot = 1; dot < oldGlobalSubdivision; dot++) BeatType.normal],
-    ];
   }
 
   void _ensureValidPattern() {

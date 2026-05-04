@@ -1,5 +1,20 @@
 import 'dart:math' as math;
 
+const noteNames = [
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B',
+];
+
 class TunerReading {
   const TunerReading({
     required this.frequency,
@@ -32,21 +47,7 @@ class TunerReading {
 
   String get noteName {
     if (!hasPitch) return '--';
-    const names = [
-      'C',
-      'C#',
-      'D',
-      'D#',
-      'E',
-      'F',
-      'F#',
-      'G',
-      'G#',
-      'A',
-      'A#',
-      'B',
-    ];
-    return names[midiNumber % 12];
+    return noteNames[midiNumber % 12];
   }
 
   int get octave {
