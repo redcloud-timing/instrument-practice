@@ -140,6 +140,39 @@ class LibraryController extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> renameItem(LibraryItem item, String title) async {
+    final nextTitle = title.trim();
+    if (nextTitle.isEmpty) return;
+
+    items = [
+      for (final current in items)
+        if (current.uri == item.uri)
+          current.copyWith(title: nextTitle)
+        else
+          current,
+    ];
+
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> saveLastPageIndex(LibraryItem item, int pageIndex) async {
+    final nextPageIndex = pageIndex < 0 ? 0 : pageIndex;
+    final existing = itemByUri(item.uri);
+    if (existing == null || existing.lastPageIndex == nextPageIndex) return;
+
+    items = [
+      for (final current in items)
+        if (current.uri == item.uri)
+          current.copyWith(lastPageIndex: nextPageIndex)
+        else
+          current,
+    ];
+
+    notifyListeners();
+    await _save();
+  }
+
   Future<void> toggleFavorite(LibraryItem item) async {
     items = [
       for (final current in items)
@@ -149,6 +182,7 @@ class LibraryController extends ChangeNotifier {
           current,
     ];
 
+    _trimItems();
     notifyListeners();
     await _save();
   }
@@ -164,10 +198,18 @@ class LibraryController extends ChangeNotifier {
   }
 
   void _trimItems() {
-    items.sort(_sortByOpenedAtDesc);
-    if (items.length > _maxItems) {
-      items = items.take(_maxItems).toList();
+    if (items.length <= _maxItems) {
+      items.sort(_sortByOpenedAtDesc);
+      return;
     }
+
+    final favorites = items.where((item) => item.isFavorite).toList()
+      ..sort(_sortByOpenedAtDesc);
+    final others = items.where((item) => !item.isFavorite).toList()
+      ..sort(_sortByOpenedAtDesc);
+    final otherLimit = _maxItems - favorites.length;
+
+    items = [...favorites, if (otherLimit > 0) ...others.take(otherLimit)];
   }
 
   Future<void> _save() async {

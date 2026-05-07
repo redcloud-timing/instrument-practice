@@ -132,6 +132,7 @@ class _DocumentBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (item.isPdf) {
       return _PdfReader(
+        initialPageIndex: item.lastPageIndex,
         pageCountFuture: state._pdfPageCountFuture!,
         loadPage: ({required int pageIndex, required int renderWidth}) {
           return state._loadPdfPage(
@@ -139,6 +140,9 @@ class _DocumentBody extends StatelessWidget {
             pageIndex: pageIndex,
             renderWidth: renderWidth,
           );
+        },
+        onPageChanged: (pageIndex) {
+          context.read<LibraryController>().saveLastPageIndex(item, pageIndex);
         },
       );
     }
@@ -174,20 +178,95 @@ class _NoteBanner extends StatelessWidget {
   }
 }
 
-class _PdfReader extends StatelessWidget {
-  const _PdfReader({required this.pageCountFuture, required this.loadPage});
+class _PdfReader extends StatefulWidget {
+  const _PdfReader({
+    required this.initialPageIndex,
+    required this.pageCountFuture,
+    required this.loadPage,
+    required this.onPageChanged,
+  });
 
+  final int initialPageIndex;
   final Future<int> pageCountFuture;
   final Future<Uint8List> Function({
     required int pageIndex,
     required int renderWidth,
   })
   loadPage;
+  final ValueChanged<int> onPageChanged;
+
+  @override
+  State<_PdfReader> createState() => _PdfReaderState();
+}
+
+class _PdfReaderState extends State<_PdfReader> {
+  final ScrollController _scrollController = ScrollController();
+  late int _lastReportedPageIndex;
+  bool _didScheduleInitialJump = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastReportedPageIndex = widget.initialPageIndex;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  double _estimatedPageExtent(BoxConstraints constraints) {
+    return (constraints.maxWidth * 1.45 + 42).clamp(320.0, 1600.0).toDouble();
+  }
+
+  void _scheduleInitialJump({
+    required int pageCount,
+    required double estimatedPageExtent,
+  }) {
+    if (_didScheduleInitialJump) return;
+    _didScheduleInitialJump = true;
+
+    final targetPage = widget.initialPageIndex.clamp(0, pageCount - 1).toInt();
+    if (targetPage <= 0) return;
+
+    void jumpToTarget() {
+      if (!mounted || !_scrollController.hasClients) return;
+
+      final maxScrollExtent = _scrollController.position.maxScrollExtent;
+      final targetOffset = (targetPage * estimatedPageExtent)
+          .clamp(0.0, maxScrollExtent)
+          .toDouble();
+      _scrollController.jumpTo(targetOffset);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      jumpToTarget();
+      Future<void>.delayed(const Duration(milliseconds: 250), jumpToTarget);
+    });
+  }
+
+  void _reportVisiblePage({
+    required ScrollMetrics metrics,
+    required int pageCount,
+    required double estimatedPageExtent,
+  }) {
+    if (pageCount <= 0 || estimatedPageExtent <= 0) return;
+
+    final pageIndex = (metrics.pixels / estimatedPageExtent)
+        .round()
+        .clamp(0, pageCount - 1)
+        .toInt();
+    if (pageIndex == _lastReportedPageIndex) return;
+
+    _lastReportedPageIndex = pageIndex;
+    widget.onPageChanged(pageIndex);
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<int>(
-      future: pageCountFuture,
+      future: widget.pageCountFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
@@ -208,20 +287,41 @@ class _PdfReader extends StatelessWidget {
             final renderWidth = (constraints.maxWidth * pixelRatio)
                 .clamp(900, 2200)
                 .round();
+            final estimatedPageExtent = _estimatedPageExtent(constraints);
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: pageCount,
-              itemBuilder: (context, index) {
-                return _PdfPageImage(
-                  pageFuture: loadPage(
-                    pageIndex: index,
-                    renderWidth: renderWidth,
-                  ),
-                  pageIndex: index,
-                  pageCount: pageCount,
-                );
+            _scheduleInitialJump(
+              pageCount: pageCount,
+              estimatedPageExtent: estimatedPageExtent,
+            );
+
+            return NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification.metrics.axis != Axis.vertical) return false;
+                if (notification is ScrollUpdateNotification ||
+                    notification is ScrollEndNotification) {
+                  _reportVisiblePage(
+                    metrics: notification.metrics,
+                    pageCount: pageCount,
+                    estimatedPageExtent: estimatedPageExtent,
+                  );
+                }
+                return false;
               },
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(12),
+                itemCount: pageCount,
+                itemBuilder: (context, index) {
+                  return _PdfPageImage(
+                    pageFuture: widget.loadPage(
+                      pageIndex: index,
+                      renderWidth: renderWidth,
+                    ),
+                    pageIndex: index,
+                    pageCount: pageCount,
+                  );
+                },
+              ),
             );
           },
         );

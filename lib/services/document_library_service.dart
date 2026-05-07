@@ -32,6 +32,29 @@ class DocumentLibraryService {
     }
   }
 
+  Future<LibraryItem?> pickImage() async {
+    try {
+      final result = await _channel.invokeMethod<Object?>('pickImage');
+      if (result == null) return null;
+      if (result is! Map) {
+        throw const DocumentLibraryException('无法读取所选图片信息。');
+      }
+
+      final now = DateTime.now().toIso8601String();
+      final item = LibraryItem.fromPickedMap(
+        Map<Object?, Object?>.from(result),
+        addedAtIso: now,
+        openedAtIso: now,
+      );
+      if (!item.isImage) {
+        throw const DocumentLibraryException('请选择图片文件。');
+      }
+      return item;
+    } on PlatformException catch (error) {
+      throw DocumentLibraryException(error.message ?? '选择图片失败。');
+    }
+  }
+
   Future<Uint8List> loadImageBytes(LibraryItem item) async {
     try {
       final result = await _channel.invokeMethod<Uint8List>('loadImage', {

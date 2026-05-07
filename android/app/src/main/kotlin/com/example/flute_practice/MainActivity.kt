@@ -44,6 +44,7 @@ class MainActivity : FlutterActivity() {
     private val tunerChannelName = "flute_practice/tuner"
     private val tunerEventChannelName = "flute_practice/tuner_events"
     private val pickDocumentRequestCode = 4701
+    private val pickImageRequestCode = 4702
     private val tunerPermissionRequestCode = 4801
     private var toneGenerator: ToneGenerator? = null
     private var pendingPickResult: MethodChannel.Result? = null
@@ -94,6 +95,7 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pickDocument" -> pickDocument(result)
+                "pickImage" -> pickImage(result)
                 "loadImage" -> {
                     val uri = call.argument<String>("uri")
                     loadImage(uri, result)
@@ -296,6 +298,28 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun pickImage(result: MethodChannel.Result) {
+        if (pendingPickResult != null) {
+            result.error("PICK_IN_PROGRESS", "已有文件选择正在进行。", null)
+            return
+        }
+
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "image/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+
+        try {
+            pendingPickResult = result
+            startActivityForResult(intent, pickImageRequestCode)
+        } catch (error: ActivityNotFoundException) {
+            pendingPickResult = null
+            result.error("NO_FILE_PICKER", "没有找到可选择图片的应用。", null)
+        }
+    }
+
     private fun loadImage(uriString: String?, result: MethodChannel.Result) {
         val uri = parseUri(uriString, result) ?: return
 
@@ -435,7 +459,7 @@ class MainActivity : FlutterActivity() {
         resultCode: Int,
         data: Intent?
     ) {
-        if (requestCode == pickDocumentRequestCode) {
+        if (requestCode == pickDocumentRequestCode || requestCode == pickImageRequestCode) {
             handlePickedDocument(resultCode, data)
             return
         }

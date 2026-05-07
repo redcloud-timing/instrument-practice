@@ -1,9 +1,14 @@
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/practice_controller.dart';
+import '../controllers/theme_controller.dart';
+import '../models/library_item.dart';
+import '../services/document_library_service.dart';
 import '../utils/app_date_utils.dart';
 import 'calendar_screen.dart';
 import 'day_detail_screen.dart';
@@ -16,36 +21,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  late final AnimationController _musicAnimController;
-  late final AnimationController _waterAnimController;
-  late final AnimationController _sunAnimController;
-
-  @override
-  void initState() {
-    super.initState();
-    _musicAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _waterAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _sunAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-  }
-
-  @override
-  void dispose() {
-    _musicAnimController.dispose();
-    _waterAnimController.dispose();
-    _sunAnimController.dispose();
-    super.dispose();
-  }
-
+class _HomeScreenState extends State<HomeScreen> {
   Future<void> _editDailyRead(BuildContext context, String currentText) async {
     final result = await Navigator.push<String>(
       context,
@@ -83,21 +59,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await controller.startTimer();
   }
 
-  void _triggerMusic() {
-    context.read<PracticeController>().clickMusic();
-    _musicAnimController.forward(from: 0);
-  }
-
-  void _triggerWater() {
-    context.read<PracticeController>().clickWater();
-    _waterAnimController.forward(from: 0);
-  }
-
-  void _triggerSun() {
-    context.read<PracticeController>().clickSun();
-    _sunAnimController.forward(from: 0);
-  }
-
   void _openCalendar(BuildContext context) {
     Navigator.push(
       context,
@@ -131,17 +92,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             elapsedSeconds: controller.elapsedSeconds,
             todayPracticeSeconds: todayPracticeSeconds,
             isRunning: controller.isTimerRunning,
-            flowerGrowthStage: controller.flowerGrowthStage,
-            musicClicks: controller.musicClicks,
-            waterClicks: controller.waterClicks,
-            sunClicks: controller.sunClicks,
-            musicAnimProgress: _musicAnimController,
-            waterAnimProgress: _waterAnimController,
-            sunAnimProgress: _sunAnimController,
+            practiceImage: controller.homePracticeImage,
             onTimerPressed: () => _toggleTimer(context),
-            onMusicPressed: _triggerMusic,
-            onWaterPressed: _triggerWater,
-            onSunPressed: _triggerSun,
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -192,33 +144,15 @@ class _PracticeTimerCard extends StatelessWidget {
     required this.elapsedSeconds,
     required this.todayPracticeSeconds,
     required this.isRunning,
-    required this.flowerGrowthStage,
-    required this.musicClicks,
-    required this.waterClicks,
-    required this.sunClicks,
-    required this.musicAnimProgress,
-    required this.waterAnimProgress,
-    required this.sunAnimProgress,
+    required this.practiceImage,
     required this.onTimerPressed,
-    required this.onMusicPressed,
-    required this.onWaterPressed,
-    required this.onSunPressed,
   });
 
   final int elapsedSeconds;
   final int todayPracticeSeconds;
   final bool isRunning;
-  final int flowerGrowthStage;
-  final int musicClicks;
-  final int waterClicks;
-  final int sunClicks;
-  final Animation<double> musicAnimProgress;
-  final Animation<double> waterAnimProgress;
-  final Animation<double> sunAnimProgress;
+  final LibraryItem? practiceImage;
   final VoidCallback onTimerPressed;
-  final VoidCallback onMusicPressed;
-  final VoidCallback onWaterPressed;
-  final VoidCallback onSunPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +190,7 @@ class _PracticeTimerCard extends StatelessWidget {
               children: [
                 Expanded(flex: 4, child: _buildTimerSection(context)),
                 const SizedBox(width: 10),
-                Expanded(flex: 6, child: _buildAnimationSection(context)),
+                Expanded(flex: 6, child: _buildImageSection(context)),
               ],
             ),
           ],
@@ -315,9 +249,8 @@ class _PracticeTimerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAnimationSection(BuildContext context) {
+  Widget _buildImageSection(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final primaryColor = colorScheme.primary;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -329,127 +262,125 @@ class _PracticeTimerCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedBuilder(
-              animation: Listenable.merge([
-                musicAnimProgress,
-                waterAnimProgress,
-                sunAnimProgress,
-              ]),
-              builder: (context, _) {
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 142),
-                    child: AspectRatio(
-                      aspectRatio: 32 / 30,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: CustomPaint(
-                          painter: _PracticeFlowerPainter(
-                            growthStage: flowerGrowthStage,
-                            colorFillProgress:
-                                (todayPracticeSeconds / (2 * 60 * 60)).clamp(
-                                  0.0,
-                                  1.0,
-                                ),
-                            musicProgress: musicAnimProgress.value,
-                            waterProgress: waterAnimProgress.value,
-                            sunProgress: sunAnimProgress.value,
-                            themeColor: primaryColor,
-                          ),
-                          child: const SizedBox.expand(),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 34,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _InteractionButton(
-                      icon: Icons.music_note_outlined,
-                      label: '音乐',
-                      clicks: musicClicks,
-                      maxClicks: 3,
-                      onPressed: onMusicPressed,
-                      disabled: false,
-                    ),
-                    const SizedBox(width: 4),
-                    _InteractionButton(
-                      icon: Icons.water_drop_outlined,
-                      label: '浇水',
-                      clicks: waterClicks,
-                      maxClicks: 3,
-                      onPressed: onWaterPressed,
-                      disabled: false,
-                    ),
-                    const SizedBox(width: 4),
-                    _InteractionButton(
-                      icon: Icons.wb_sunny_outlined,
-                      label: '阳光',
-                      clicks: sunClicks,
-                      maxClicks: 3,
-                      onPressed: onSunPressed,
-                      disabled: false,
-                    ),
-                  ],
-                ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 160),
+            child: AspectRatio(
+              aspectRatio: 32 / 30,
+              child: _PracticeImageReveal(
+                image: practiceImage,
+                practiceSeconds: todayPracticeSeconds,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _InteractionButton extends StatelessWidget {
-  const _InteractionButton({
-    required this.icon,
-    required this.label,
-    required this.clicks,
-    required this.maxClicks,
-    required this.onPressed,
-    required this.disabled,
+class _PracticeImageReveal extends StatefulWidget {
+  const _PracticeImageReveal({
+    required this.image,
+    required this.practiceSeconds,
   });
 
-  final IconData icon;
-  final String label;
-  final int clicks;
-  final int maxClicks;
-  final VoidCallback onPressed;
-  final bool disabled;
+  static const defaultAsset = 'assets/images/default_lotus_ink.png';
+
+  final LibraryItem? image;
+  final int practiceSeconds;
+
+  @override
+  State<_PracticeImageReveal> createState() => _PracticeImageRevealState();
+}
+
+class _PracticeImageRevealState extends State<_PracticeImageReveal> {
+  final _documentService = DocumentLibraryService();
+  Future<Uint8List>? _imageBytesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PracticeImageReveal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.image?.uri != widget.image?.uri) {
+      _loadImage();
+    }
+  }
+
+  void _loadImage() {
+    final image = widget.image;
+    _imageBytesFuture = image == null
+        ? null
+        : _documentService.loadImageBytes(image);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final progress = (widget.practiceSeconds / (2 * 60 * 60))
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final eased = Curves.easeOutCubic.transform(progress);
+    final revealProfile = context.watch<ThemeController>().imageRevealProfile;
+    final imageOpacity =
+        revealProfile.minOpacity + eased * (1.0 - revealProfile.minOpacity);
+    final blurSigma = revealProfile.maxBlur * (1.0 - eased);
+    final fogOpacity = revealProfile.maxFogOpacity * (1.0 - eased);
     final colorScheme = Theme.of(context).colorScheme;
-    final complete = clicks >= maxClicks;
 
-    return Tooltip(
-      message: disabled ? '已完全成长' : '$label ($clicks/$maxClicks)',
-      child: IconButton(
-        onPressed: disabled ? null : onPressed,
-        icon: Icon(icon, size: 22),
-        style: IconButton.styleFrom(
-          minimumSize: const Size.square(34),
-          fixedSize: const Size.square(34),
-          padding: EdgeInsets.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          backgroundColor: complete
-              ? colorScheme.primaryContainer.withValues(alpha: 0.5)
-              : null,
-          foregroundColor: complete ? colorScheme.primary : null,
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(decoration: BoxDecoration(color: colorScheme.surface)),
+          Opacity(
+            opacity: imageOpacity,
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: blurSigma,
+                sigmaY: blurSigma,
+              ),
+              child: _buildImage(),
+            ),
+          ),
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withValues(alpha: fogOpacity),
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildImage() {
+    final future = _imageBytesFuture;
+    if (future == null) {
+      return Image.asset(_PracticeImageReveal.defaultAsset, fit: BoxFit.cover);
+    }
+
+    return FutureBuilder<Uint8List>(
+      future: future,
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.done &&
+            bytes != null &&
+            bytes.isNotEmpty) {
+          return Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true);
+        }
+
+        return Image.asset(
+          _PracticeImageReveal.defaultAsset,
+          fit: BoxFit.cover,
+        );
+      },
     );
   }
 }
@@ -687,6 +618,7 @@ class _TodaySummaryCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _PracticeFlowerPainter extends CustomPainter {
   const _PracticeFlowerPainter({
     required this.growthStage,

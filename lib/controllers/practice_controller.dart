@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/library_item.dart';
 import '../models/practice_log.dart';
 import '../services/database_service.dart';
 import '../utils/app_date_utils.dart';
@@ -16,6 +17,7 @@ class PracticeController extends ChangeNotifier {
   static const _timerStartKey = 'active_timer_start_iso';
   static const _flowerStateKey = 'flower_state_v1';
   static const _flowerDateKey = 'flower_state_date';
+  static const _homePracticeImageKey = 'home_practice_image_v1';
   static const _maxFlowerGrowthStage = 5;
   static const _maxInteractionClicks = 3;
 
@@ -31,6 +33,7 @@ class PracticeController extends ChangeNotifier {
   int get waterClicks => _waterClicks;
   int get sunClicks => _sunClicks;
   String dailyRead = '';
+  LibraryItem? homePracticeImage;
   List<PracticeLog> logs = [];
 
   DateTime? activeTimerStart;
@@ -104,6 +107,7 @@ class PracticeController extends ChangeNotifier {
     }
 
     await _loadFlowerState();
+    await _loadHomePracticeImage();
 
     logs = await _databaseService.getAllLogs();
     isLoading = false;
@@ -122,6 +126,22 @@ class PracticeController extends ChangeNotifier {
   Future<void> saveDailyRead(String text) async {
     dailyRead = text.trim();
     await _databaseService.setSetting(_dailyReadKey, dailyRead);
+    notifyListeners();
+  }
+
+  Future<void> saveHomePracticeImage(LibraryItem item) async {
+    if (!item.isImage) return;
+    homePracticeImage = item;
+    await _databaseService.setSetting(
+      _homePracticeImageKey,
+      jsonEncode(item.toMap()),
+    );
+    notifyListeners();
+  }
+
+  Future<void> clearHomePracticeImage() async {
+    homePracticeImage = null;
+    await _databaseService.deleteSetting(_homePracticeImageKey);
     notifyListeners();
   }
 
@@ -208,6 +228,21 @@ class PracticeController extends ChangeNotifier {
             .toInt();
       } catch (_) {}
     }
+  }
+
+  Future<void> _loadHomePracticeImage() async {
+    final json = await _databaseService.getSetting(_homePracticeImageKey);
+    if (json == null || json.isEmpty) return;
+
+    try {
+      final map = jsonDecode(json);
+      if (map is Map) {
+        final item = LibraryItem.fromMap(Map<String, dynamic>.from(map));
+        if (item.isImage && item.uri.isNotEmpty) {
+          homePracticeImage = item;
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _saveFlowerState() async {

@@ -7,12 +7,18 @@ class TextEditScreen extends StatefulWidget {
     required this.initialText,
     required this.hintText,
     this.saveLabel = '保存',
+    this.minLines = 10,
+    this.maxLines,
+    this.textInputAction = TextInputAction.newline,
   });
 
   final String title;
   final String initialText;
   final String hintText;
   final String saveLabel;
+  final int minLines;
+  final int? maxLines;
+  final TextInputAction textInputAction;
 
   @override
   State<TextEditScreen> createState() => _TextEditScreenState();
@@ -58,9 +64,12 @@ class _TextEditScreenState extends State<TextEditScreen> {
           child: TextField(
             controller: _textController,
             autofocus: true,
-            minLines: 10,
-            maxLines: null,
-            textInputAction: TextInputAction.newline,
+            minLines: widget.minLines,
+            maxLines: widget.maxLines,
+            textInputAction: widget.textInputAction,
+            onSubmitted: widget.textInputAction == TextInputAction.done
+                ? (_) => _submit()
+                : null,
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
               hintText: widget.hintText,

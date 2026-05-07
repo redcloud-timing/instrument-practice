@@ -56,11 +56,12 @@ class FlutePracticeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = context.watch<ThemeController>().themeColor;
+    final themeController = context.watch<ThemeController>();
 
     return MaterialApp(
       title: '长笛练习',
       debugShowCheckedModeBanner: false,
+      themeMode: themeController.themeMode,
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [
@@ -68,19 +69,132 @@ class FlutePracticeApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: themeColor).copyWith(
-          primary: themeColor,
-          onPrimary: themeColor.computeLuminance() > 0.5
-              ? Colors.black
-              : Colors.white,
-        ),
-        cardTheme: const CardThemeData(margin: EdgeInsets.zero),
-      ),
+      theme: _buildAppTheme(themeController, Brightness.light),
+      darkTheme: _buildAppTheme(themeController, Brightness.dark),
       home: const MainShell(),
     );
   }
+}
+
+ThemeData _buildAppTheme(ThemeController controller, Brightness brightness) {
+  final ambience = controller.ambience;
+  final isDark = brightness == Brightness.dark;
+  final seedColor = controller.themeColor;
+  final baseScheme = ColorScheme.fromSeed(
+    seedColor: seedColor,
+    brightness: brightness,
+  );
+  final background = isDark
+      ? ambience.darkBackground
+      : ambience.lightBackground;
+  final surface = isDark ? ambience.darkSurface : ambience.lightSurface;
+  final surfaceAlt = isDark
+      ? ambience.darkSurfaceAlt
+      : ambience.lightSurfaceAlt;
+  final primary = seedColor;
+  final scheme = baseScheme.copyWith(
+    primary: primary,
+    onPrimary: primary.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+    secondary: ambience.accentColor,
+    tertiary: ambience.warmColor,
+    surface: surface,
+    surfaceContainer: _blend(surface, primary, isDark ? 0.08 : 0.035),
+    surfaceContainerHigh: _blend(surface, primary, isDark ? 0.10 : 0.05),
+    surfaceContainerHighest: surfaceAlt,
+    outlineVariant: _blend(baseScheme.outlineVariant, primary, 0.10),
+  );
+
+  final baseTheme = ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: scheme,
+    scaffoldBackgroundColor: background,
+  );
+
+  return baseTheme.copyWith(
+    appBarTheme: AppBarTheme(
+      backgroundColor: background,
+      foregroundColor: scheme.onSurface,
+      centerTitle: true,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      titleTextStyle: baseTheme.textTheme.titleLarge?.copyWith(
+        color: scheme.onSurface,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      margin: EdgeInsets.zero,
+      color: surface,
+      surfaceTintColor: primary.withValues(alpha: isDark ? 0.08 : 0.04),
+      elevation: isDark ? 0 : 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: surface,
+      indicatorColor: scheme.primaryContainer,
+      elevation: 0,
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        return baseTheme.textTheme.labelMedium?.copyWith(
+          color: states.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.onSurfaceVariant,
+          fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        return IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.onSurfaceVariant,
+        );
+      }),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(48, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: _blend(surface, primary, isDark ? 0.05 : 0.025),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: scheme.primary, width: 1.6),
+      ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: isDark ? surfaceAlt : const Color(0xFF222826),
+      contentTextStyle: TextStyle(
+        color: isDark ? scheme.onSurface : Colors.white,
+      ),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    dividerTheme: DividerThemeData(color: scheme.outlineVariant),
+  );
+}
+
+Color _blend(Color base, Color overlay, double alpha) {
+  return Color.alphaBlend(overlay.withValues(alpha: alpha), base);
 }
 
 class MainShell extends StatefulWidget {
@@ -100,6 +214,25 @@ class _MainShellState extends State<MainShell> {
     TunerScreen(),
   ];
 
+  Future<void> _pickHomePracticeImage() async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final picked = await context
+          .read<LibraryController>()
+          .documentService
+          .pickImage();
+      if (!mounted || picked == null) return;
+
+      await context.read<PracticeController>().saveHomePracticeImage(picked);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('已更换首页练习图片')));
+    } on DocumentLibraryException catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,17 +241,42 @@ class _MainShellState extends State<MainShell> {
               title: const Text('长笛练习'),
               centerTitle: true,
               actions: [
-                IconButton(
+                PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
-                  tooltip: '主题设置',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ThemeSettingsScreen(),
-                      ),
-                    );
+                  tooltip: '更多',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'image':
+                        _pickHomePracticeImage();
+                        break;
+                      case 'theme':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ThemeSettingsScreen(),
+                          ),
+                        );
+                        break;
+                    }
                   },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'image',
+                      child: ListTile(
+                        leading: Icon(Icons.image_outlined),
+                        title: Text('更换练习图片'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'theme',
+                      child: ListTile(
+                        leading: Icon(Icons.palette_outlined),
+                        title: Text('主题设置'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             )

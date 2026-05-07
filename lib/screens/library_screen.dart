@@ -7,8 +7,38 @@ import '../services/document_library_service.dart';
 import 'document_viewer_screen.dart';
 import 'text_edit_screen.dart';
 
-class LibraryScreen extends StatelessWidget {
+enum _LibraryFilter { all, favorites, pdf, image }
+
+enum _LibraryTileAction { rename, delete }
+
+class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
+
+  @override
+  State<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends State<LibraryScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  _LibraryFilter _filter = _LibraryFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_handleSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_handleSearchChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleSearchChanged() {
+    setState(() {});
+  }
 
   Future<void> _addDocument(BuildContext context) async {
     final controller = context.read<LibraryController>();
@@ -35,6 +65,33 @@ class LibraryScreen extends StatelessWidget {
         builder: (_) => DocumentViewerScreen(itemUri: item.uri),
       ),
     );
+  }
+
+  Future<void> _renameItem(BuildContext context, LibraryItem item) async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TextEditScreen(
+          title: '重命名资料',
+          initialText: item.title,
+          hintText: '输入资料名称',
+          minLines: 1,
+          maxLines: 1,
+          textInputAction: TextInputAction.done,
+        ),
+      ),
+    );
+
+    if (result == null || !context.mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!context.mounted) return;
+
+    if (result.trim().isEmpty) {
+      _showMessage(context, '资料名称不能为空。');
+      return;
+    }
+
+    await context.read<LibraryController>().renameItem(item, result);
   }
 
   Future<void> _editNote(BuildContext context, LibraryItem item) async {
@@ -80,6 +137,35 @@ class LibraryScreen extends StatelessWidget {
     await context.read<LibraryController>().deleteItem(item);
   }
 
+  List<LibraryItem> _filteredItems(Iterable<LibraryItem> source) {
+    return [
+      for (final item in source)
+        if (_matchesFilter(item) && _matchesQuery(item)) item,
+    ];
+  }
+
+  bool _matchesFilter(LibraryItem item) {
+    return switch (_filter) {
+      _LibraryFilter.all => true,
+      _LibraryFilter.favorites => item.isFavorite,
+      _LibraryFilter.pdf => item.isPdf,
+      _LibraryFilter.image => item.isImage,
+    };
+  }
+
+  bool _matchesQuery(LibraryItem item) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return true;
+
+    return item.title.toLowerCase().contains(query) ||
+        item.note.toLowerCase().contains(query);
+  }
+
+  bool get _isFiltering {
+    return _filter != _LibraryFilter.all ||
+        _searchController.text.trim().isNotEmpty;
+  }
+
   void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
@@ -94,6 +180,9 @@ class LibraryScreen extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final visibleRecentItems = _filteredItems(controller.recentItems);
+    final visibleFavoriteItems = _filteredItems(controller.favoriteItems);
+
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -104,37 +193,66 @@ class LibraryScreen extends StatelessWidget {
             busy: controller.isBusy,
             onAdd: () => _addDocument(context),
           ),
-          if (controller.favoriteItems.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _LibrarySearchControls(
+            controller: _searchController,
+            filter: _filter,
+            onClearSearch: _searchController.clear,
+            onFilterChanged: (filter) => setState(() => _filter = filter),
+          ),
+          if (_isFiltering) ...[
             const SizedBox(height: 20),
-            const _SectionTitle('收藏'),
+            const _SectionTitle('筛选结果'),
             const SizedBox(height: 8),
-            for (final item in controller.favoriteItems)
-              _LibraryTile(
-                item: item,
-                busy: controller.isBusy,
-                onOpen: () => _openItem(context, item),
-                onFavorite: () =>
-                    context.read<LibraryController>().toggleFavorite(item),
-                onNote: () => _editNote(context, item),
-                onDelete: () => _deleteItem(context, item),
-              ),
+            if (visibleRecentItems.isEmpty)
+              const _EmptyLibrary(message: '没有找到匹配资料')
+            else
+              for (final item in visibleRecentItems)
+                _LibraryTile(
+                  item: item,
+                  busy: controller.isBusy,
+                  onOpen: () => _openItem(context, item),
+                  onFavorite: () =>
+                      context.read<LibraryController>().toggleFavorite(item),
+                  onNote: () => _editNote(context, item),
+                  onRename: () => _renameItem(context, item),
+                  onDelete: () => _deleteItem(context, item),
+                ),
+          ] else ...[
+            if (visibleFavoriteItems.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              const _SectionTitle('收藏'),
+              const SizedBox(height: 8),
+              for (final item in visibleFavoriteItems)
+                _LibraryTile(
+                  item: item,
+                  busy: controller.isBusy,
+                  onOpen: () => _openItem(context, item),
+                  onFavorite: () =>
+                      context.read<LibraryController>().toggleFavorite(item),
+                  onNote: () => _editNote(context, item),
+                  onRename: () => _renameItem(context, item),
+                  onDelete: () => _deleteItem(context, item),
+                ),
+            ],
+            const SizedBox(height: 20),
+            const _SectionTitle('最近'),
+            const SizedBox(height: 8),
+            if (visibleRecentItems.isEmpty)
+              const _EmptyLibrary(message: '暂无资料')
+            else
+              for (final item in visibleRecentItems)
+                _LibraryTile(
+                  item: item,
+                  busy: controller.isBusy,
+                  onOpen: () => _openItem(context, item),
+                  onFavorite: () =>
+                      context.read<LibraryController>().toggleFavorite(item),
+                  onNote: () => _editNote(context, item),
+                  onRename: () => _renameItem(context, item),
+                  onDelete: () => _deleteItem(context, item),
+                ),
           ],
-          const SizedBox(height: 20),
-          const _SectionTitle('最近'),
-          const SizedBox(height: 8),
-          if (controller.recentItems.isEmpty)
-            const _EmptyLibrary()
-          else
-            for (final item in controller.recentItems)
-              _LibraryTile(
-                item: item,
-                busy: controller.isBusy,
-                onOpen: () => _openItem(context, item),
-                onFavorite: () =>
-                    context.read<LibraryController>().toggleFavorite(item),
-                onNote: () => _editNote(context, item),
-                onDelete: () => _deleteItem(context, item),
-              ),
         ],
       ),
     );
@@ -211,6 +329,78 @@ class _LibraryHeader extends StatelessWidget {
   }
 }
 
+class _LibrarySearchControls extends StatelessWidget {
+  const _LibrarySearchControls({
+    required this.controller,
+    required this.filter,
+    required this.onClearSearch,
+    required this.onFilterChanged,
+  });
+
+  static const _filters = [
+    _LibraryFilter.all,
+    _LibraryFilter.favorites,
+    _LibraryFilter.pdf,
+    _LibraryFilter.image,
+  ];
+
+  final TextEditingController controller;
+  final _LibraryFilter filter;
+  final VoidCallback onClearSearch;
+  final ValueChanged<_LibraryFilter> onFilterChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.search),
+            hintText: '按名称或笔记搜索',
+            suffixIcon: controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: '清空搜索',
+                    onPressed: onClearSearch,
+                    icon: const Icon(Icons.close),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in _filters)
+              ChoiceChip(
+                label: Text(value.label),
+                selected: filter == value,
+                onSelected: (_) => onFilterChanged(value),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+extension on _LibraryFilter {
+  String get label {
+    return switch (this) {
+      _LibraryFilter.all => '全部',
+      _LibraryFilter.favorites => '收藏',
+      _LibraryFilter.pdf => 'PDF',
+      _LibraryFilter.image => '图片',
+    };
+  }
+}
+
 class _CountChip extends StatelessWidget {
   const _CountChip({required this.icon, required this.label});
 
@@ -240,7 +430,9 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _EmptyLibrary extends StatelessWidget {
-  const _EmptyLibrary();
+  const _EmptyLibrary({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -255,7 +447,7 @@ class _EmptyLibrary extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
-            const Expanded(child: Text('暂无资料')),
+            Expanded(child: Text(message)),
           ],
         ),
       ),
@@ -270,6 +462,7 @@ class _LibraryTile extends StatelessWidget {
     required this.onOpen,
     required this.onFavorite,
     required this.onNote,
+    required this.onRename,
     required this.onDelete,
   });
 
@@ -278,6 +471,7 @@ class _LibraryTile extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onFavorite;
   final VoidCallback onNote;
+  final VoidCallback onRename;
   final VoidCallback onDelete;
 
   @override
@@ -287,6 +481,8 @@ class _LibraryTile extends StatelessWidget {
       item.typeLabel,
       if (sizeLabel.isNotEmpty) sizeLabel,
       if (item.note.isNotEmpty) '有笔记',
+      if (item.isPdf && item.lastPageIndex > 0)
+        '上次第 ${item.lastPageIndex + 1} 页',
       item.openedAtLabel,
     ].join(' · ');
 
@@ -322,10 +518,34 @@ class _LibraryTile extends StatelessWidget {
                     item.note.isEmpty ? Icons.note_add_outlined : Icons.note,
                   ),
                 ),
-                IconButton(
-                  tooltip: '移除',
-                  onPressed: busy ? null : onDelete,
-                  icon: const Icon(Icons.delete_outline),
+                PopupMenuButton<_LibraryTileAction>(
+                  tooltip: '更多操作',
+                  enabled: !busy,
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (action) {
+                    switch (action) {
+                      case _LibraryTileAction.rename:
+                        onRename();
+                      case _LibraryTileAction.delete:
+                        onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: _LibraryTileAction.rename,
+                      child: ListTile(
+                        leading: Icon(Icons.drive_file_rename_outline),
+                        title: Text('重命名'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _LibraryTileAction.delete,
+                      child: ListTile(
+                        leading: Icon(Icons.delete_outline),
+                        title: Text('移除'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
