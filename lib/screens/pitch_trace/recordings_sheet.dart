@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../controllers/tuner_controller.dart';
+import '../../controllers/pitch_trace_controller.dart';
+import '../../models/pitch_trace_recording.dart';
+import '../text_edit_screen.dart';
+
+enum _RecordingAction { rename, note, delete }
 
 class RecordingsListSheet extends StatefulWidget {
   const RecordingsListSheet({super.key});
@@ -13,12 +17,12 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
   @override
   void initState() {
     super.initState();
-    context.read<TunerController>().loadRecordings();
+    context.read<PitchTraceController>().loadRecordings();
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<TunerController>();
+    final controller = context.watch<PitchTraceController>();
     final recordings = controller.recordings;
 
     return DraggableScrollableSheet(
@@ -65,6 +69,11 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
                 '${date.hour.toString().padLeft(2, '0')}:'
                 '${date.minute.toString().padLeft(2, '0')}';
             final durStr = _fmtDuration(rec.durationSeconds);
+            final title = rec.title.trim().isEmpty ? dateStr : rec.title.trim();
+            final baseSubtitle = rec.title.trim().isEmpty
+                ? durStr
+                : '$dateStr · $durStr';
+            final note = rec.note.trim();
 
             return ListTile(
               contentPadding: EdgeInsets.zero,
@@ -78,12 +87,15 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
                 size: 22,
               ),
               title: Text(
-                dateStr,
+                title,
                 style: Theme.of(context).textTheme.bodyMedium,
+                overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                durStr,
+                note.isEmpty ? baseSubtitle : '$baseSubtitle\n$note',
                 style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -117,13 +129,48 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
                       padding: EdgeInsets.zero,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => controller.deleteRecording(rec.path),
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size(36, 36),
-                      padding: EdgeInsets.zero,
-                    ),
+                  PopupMenuButton<_RecordingAction>(
+                    tooltip: '更多操作',
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (action) {
+                      switch (action) {
+                        case _RecordingAction.rename:
+                          _renameRecording(context, rec);
+                          break;
+                        case _RecordingAction.note:
+                          _editRecordingNote(context, rec);
+                          break;
+                        case _RecordingAction.delete:
+                          controller.deleteRecording(rec.path);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _RecordingAction.rename,
+                        child: ListTile(
+                          leading: Icon(Icons.drive_file_rename_outline),
+                          title: Text('重命名'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _RecordingAction.note,
+                        child: ListTile(
+                          leading: Icon(Icons.sticky_note_2_outlined),
+                          title: Text('备注'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _RecordingAction.delete,
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('删除'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -132,6 +179,64 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
         );
       },
     );
+  }
+
+  Future<void> _renameRecording(
+    BuildContext context,
+    PitchTraceRecording recording,
+  ) async {
+    final controller = context.read<PitchTraceController>();
+    final initialTitle = recording.title.trim().isEmpty
+        ? recording.name.replaceAll('.wav', '')
+        : recording.title;
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TextEditScreen(
+          title: '重命名录音',
+          initialText: initialTitle,
+          hintText: '输入录音名称',
+          minLines: 1,
+          maxLines: 1,
+          textInputAction: TextInputAction.done,
+        ),
+      ),
+    );
+
+    if (result == null || !mounted || !context.mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!mounted || !context.mounted) return;
+
+    if (result.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('录音名称不能为空。')));
+      return;
+    }
+
+    await controller.renameRecording(recording.path, result);
+  }
+
+  Future<void> _editRecordingNote(
+    BuildContext context,
+    PitchTraceRecording recording,
+  ) async {
+    final controller = context.read<PitchTraceController>();
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TextEditScreen(
+          title: '录音备注',
+          initialText: recording.note,
+          hintText: '写下音高变化、气息、尾音或老师提醒',
+        ),
+      ),
+    );
+
+    if (result == null || !mounted || !context.mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!mounted || !context.mounted) return;
+    await controller.saveRecordingNote(recording.path, result);
   }
 
   String _fmtDuration(int seconds) {

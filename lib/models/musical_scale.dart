@@ -1,4 +1,4 @@
-import 'tuner_reading.dart';
+import 'pitch_reading.dart';
 
 enum ScaleType { major, minor }
 

@@ -3,10 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../models/musical_scale.dart';
-import '../../models/tuner_reading.dart';
-import '../tuner_screen.dart';
+import '../../models/pitch_reading.dart';
+import '../pitch_trace_screen.dart';
 
-const _noteMargin = 38.0;
+const _noteMargin = 48.0;
 
 class PlaybackPositionLine extends StatelessWidget {
   const PlaybackPositionLine({
@@ -22,7 +22,7 @@ class PlaybackPositionLine extends StatelessWidget {
   final int recordingFirstMs;
   final int cursorTimestamp;
   final int visibleDurationMs;
-  final TunerCanvasColors colors;
+  final PitchCanvasColors colors;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +52,7 @@ class PlaybackPositionPainter extends CustomPainter {
   final int recordingFirstMs;
   final int cursorTimestamp;
   final int visibleDurationMs;
-  final TunerCanvasColors colors;
+  final PitchCanvasColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -66,8 +66,15 @@ class PlaybackPositionPainter extends CustomPainter {
       Offset(x, 0),
       Offset(x, size.height),
       Paint()
+        ..color = colors.playbackCursor.withValues(alpha: 0.18)
+        ..strokeWidth = 9.0,
+    );
+    canvas.drawLine(
+      Offset(x, 0),
+      Offset(x, size.height),
+      Paint()
         ..color = colors.playbackCursor
-        ..strokeWidth = 2.0,
+        ..strokeWidth = 3.0,
     );
   }
 
@@ -95,12 +102,12 @@ class TimeAxis extends StatelessWidget {
   final bool autoFollow;
   final bool historyNotEmpty;
   final int? recordingStartMs;
-  final TunerCanvasColors colors;
+  final PitchCanvasColors colors;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 24,
+      height: 28,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: CustomPaint(
@@ -131,7 +138,7 @@ class TimeAxisPainter extends CustomPainter {
   final int visibleDurationMs;
   final double scrollOffsetMs;
   final int? recordingStartMs;
-  final TunerCanvasColors colors;
+  final PitchCanvasColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -153,27 +160,27 @@ class TimeAxisPainter extends CustomPainter {
         ..strokeWidth = 0.5,
     );
 
-    final majorIntervalMs = 1000;
-    final minorCount = 3;
-    final minorStep = majorIntervalMs ~/ (minorCount + 1);
+    const majorIntervalMs = 1000;
+    final minorStepMs = visibleDurationMs <= 8000 ? 250 : 500;
+    final firstMinorTickMs = (leftEdge / minorStepMs).ceil() * minorStepMs;
 
-    int firstTickMs;
-    if (recStart != null) {
-      final relLeft = leftEdge - recStart;
-      final firstRelTick = (relLeft / majorIntervalMs).ceil() * majorIntervalMs;
-      firstTickMs = recStart + firstRelTick;
-    } else {
-      firstTickMs = (leftEdge / majorIntervalMs).ceil() * majorIntervalMs;
-    }
-
-    var t = firstTickMs;
+    var t = firstMinorTickMs;
     while (t <= cursor) {
       final age = (cursor - t) / visibleDurationMs;
       final x = noteMargin + plotWidth * (1 - age);
+      final isMajor = t % majorIntervalMs == 0;
 
-      if (recStart != null) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, isMajor ? 9 : 4),
+        Paint()
+          ..color = isMajor ? colors.majorTick : colors.minorTick
+          ..strokeWidth = isMajor ? 1.1 : 0.6,
+      );
+
+      if (recStart != null && isMajor) {
         final elapsedSec = (t - recStart) ~/ 1000;
-        if (elapsedSec > 0) {
+        if (elapsedSec >= 0) {
           final tp = TextPainter(
             text: TextSpan(
               text: '${elapsedSec}s',
@@ -183,32 +190,10 @@ class TimeAxisPainter extends CustomPainter {
           );
           tp.layout();
           tp.paint(canvas, Offset(x - tp.width / 2, h - tp.height - 2));
-
-          canvas.drawLine(
-            Offset(x, 0),
-            Offset(x, 8),
-            Paint()
-              ..color = colors.majorTick
-              ..strokeWidth = 1.0,
-          );
-
-          for (var minor = 1; minor <= minorCount; minor++) {
-            final minorT = t + minor * minorStep;
-            if (minorT > cursor) break;
-            final minorAge = (cursor - minorT) / visibleDurationMs;
-            final minorX = noteMargin + plotWidth * (1 - minorAge);
-            canvas.drawLine(
-              Offset(minorX, 0),
-              Offset(minorX, 3),
-              Paint()
-                ..color = colors.minorTick
-                ..strokeWidth = 0.5,
-            );
-          }
         }
       }
 
-      t += majorIntervalMs;
+      t += minorStepMs;
     }
 
     if (recStart != null && recStart >= leftEdge && recStart <= cursor) {
@@ -250,7 +235,7 @@ class _PitchPoint {
   const _PitchPoint(this.x, this.y, this.reading, this.midi);
   final double x;
   final double y;
-  final TunerReading reading;
+  final PitchReading reading;
   final double midi;
 }
 
@@ -270,11 +255,13 @@ class PitchCanvasPainter extends CustomPainter {
     required this.colors,
     required this.minMidi,
     required this.maxMidi,
+    required this.referenceA4Hz,
+    required this.highlightedMidi,
     this.overlayHistory = const [],
     this.overlayColor,
   });
 
-  final List<TunerReading> history;
+  final List<PitchReading> history;
   final int? cursorTimestamp;
   final int visibleDurationMs;
   final double verticalOffsetSemitones;
@@ -285,10 +272,12 @@ class PitchCanvasPainter extends CustomPainter {
   final bool isPlaying;
   final int playbackPositionMs;
   final int? recordingFirstMs;
-  final TunerCanvasColors colors;
+  final PitchCanvasColors colors;
   final double minMidi;
   final double maxMidi;
-  final List<TunerReading> overlayHistory;
+  final double referenceA4Hz;
+  final int? highlightedMidi;
+  final List<PitchReading> overlayHistory;
   final Color? overlayColor;
 
   double get _effMinMidi => minMidi + verticalOffsetSemitones;
@@ -311,6 +300,7 @@ class PitchCanvasPainter extends CustomPainter {
       return;
     }
 
+    _drawTimeGrid(canvas, w, h, cursor);
     _drawGrid(canvas, w, h);
     if (overlayHistory.isNotEmpty && !isRunning) {
       _drawOverlayDots(canvas, w, h, cursor);
@@ -335,13 +325,35 @@ class PitchCanvasPainter extends CustomPainter {
             ? '等待声音输入...'
             : hasLoadedRecording
             ? '该录音没有音高数据'
-            : '点击下方按钮开始调音',
+            : '点击下方按钮开始记录',
         style: TextStyle(color: colors.emptyText, fontSize: 15),
       ),
       textDirection: TextDirection.ltr,
     );
     tp.layout();
     tp.paint(canvas, Offset(w / 2 - tp.width / 2, h / 2 - tp.height / 2));
+  }
+
+  void _drawTimeGrid(Canvas canvas, double w, double h, int cursor) {
+    final noteMargin = _noteMargin;
+    final plotWidth = w - noteMargin;
+    final leftEdge = cursor - visibleDurationMs;
+    final minorStepMs = visibleDurationMs <= 8000 ? 250 : 500;
+    const majorStepMs = 1000;
+    final firstMinor = (leftEdge / minorStepMs).ceil() * minorStepMs;
+
+    for (var t = firstMinor; t <= cursor; t += minorStepMs) {
+      final age = (cursor - t) / visibleDurationMs;
+      final x = noteMargin + plotWidth * (1 - age);
+      final isMajor = t % majorStepMs == 0;
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, h),
+        Paint()
+          ..color = isMajor ? colors.timeGridMajor : colors.timeGridMinor
+          ..strokeWidth = isMajor ? 0.8 : 0.45,
+      );
+    }
   }
 
   void _drawGrid(Canvas canvas, double w, double h) {
@@ -357,10 +369,14 @@ class PitchCanvasPainter extends CustomPainter {
       if (y < -20 || y > h + 20) continue;
       final isRoot = midi % 12 == rootIdx;
       final inScale = scaleNotes.contains(midi % 12);
+      final isHighlighted = highlightedMidi == midi;
 
       Color lineColor;
       double strokeWidth;
-      if (isRoot) {
+      if (isHighlighted) {
+        lineColor = colors.highlightNoteLine;
+        strokeWidth = 1.6;
+      } else if (isRoot) {
         lineColor = colors.gridRoot;
         strokeWidth = 1.0;
       } else if (inScale) {
@@ -386,18 +402,23 @@ class PitchCanvasPainter extends CustomPainter {
       final name = '${noteNames[midi % 12]}${midi ~/ 12 - 1}';
       final isRoot = midi % 12 == rootIdx;
       final inScale = scaleNotes.contains(midi % 12);
+      final isHighlighted = highlightedMidi == midi;
 
       final tp = TextPainter(
         text: TextSpan(
           text: name,
           style: TextStyle(
-            color: isRoot
+            color: isHighlighted
+                ? colors.pitchLine
+                : isRoot
                 ? colors.labelRoot
                 : inScale
                 ? colors.labelInScale
                 : colors.labelOther,
-            fontSize: isRoot ? 11 : (inScale ? 10 : 9),
-            fontWeight: isRoot
+            fontSize: isHighlighted ? 13 : (isRoot ? 12 : (inScale ? 11 : 10)),
+            fontWeight: isHighlighted
+                ? FontWeight.w800
+                : isRoot
                 ? FontWeight.w700
                 : inScale
                 ? FontWeight.w600
@@ -407,6 +428,18 @@ class PitchCanvasPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       );
       tp.layout(maxWidth: noteMargin - 4);
+      if (isHighlighted) {
+        final rect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            1,
+            y - tp.height / 2 - 2,
+            noteMargin - 5,
+            tp.height + 4,
+          ),
+          const Radius.circular(4),
+        );
+        canvas.drawRRect(rect, Paint()..color = colors.highlightNoteBg);
+      }
       tp.paint(canvas, Offset(2, y - tp.height / 2));
     }
 
@@ -436,49 +469,23 @@ class PitchCanvasPainter extends CustomPainter {
   }
 
   void _drawPitchTrace(Canvas canvas, double w, double h, int cursor) {
-    final noteMargin = _noteMargin;
-    final plotWidth = w - noteMargin;
-    final leftEdge = cursor - visibleDurationMs;
-
-    // Collect visible points with precomputed coordinates
-    final points = <_PitchPoint>[];
-    for (final reading in history) {
-      if (!reading.hasPitch) continue;
-      if (reading.timestampMillis < leftEdge) continue;
-      if (reading.timestampMillis > cursor) continue;
-
-      final age = (cursor - reading.timestampMillis) / visibleDurationMs;
-      final x = noteMargin + plotWidth * (1 - age);
-      final midi = 69 + 12 * math.log(reading.frequency / 440) / math.ln2;
-      final normalized =
-          (midi - _effMinMidi).clamp(0.0, _effSemitones) / _effSemitones;
-      final y = h - normalized * h;
-      points.add(_PitchPoint(x, y, reading, midi));
-    }
+    final points = _visiblePitchPoints(w, h, cursor, history);
 
     if (points.isEmpty) return;
 
-    // Draw connecting lines first (under dots)
     final linePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round;
 
     for (var i = 1; i < points.length; i++) {
       final prev = points[i - 1];
       final curr = points[i];
 
-      // Only connect if both have sufficient clarity and pitch is close
-      if (prev.reading.clarity < 0.3 || curr.reading.clarity < 0.3) continue;
-      if ((prev.midi - curr.midi).abs() > 3.0) continue;
+      if ((prev.midi - curr.midi).abs() > 4.0) continue;
 
-      final color = _dotColor(
-        curr.reading.cents.abs().toDouble(),
-        curr.reading.clarity < prev.reading.clarity
-            ? curr.reading.clarity
-            : prev.reading.clarity,
-      );
-      linePaint.color = color.withValues(alpha: 0.4);
+      final clarity = math.min(prev.reading.clarity, curr.reading.clarity);
+      linePaint.color = _segmentColor(clarity);
       canvas.drawLine(
         Offset(prev.x, prev.y),
         Offset(curr.x, curr.y),
@@ -486,15 +493,63 @@ class PitchCanvasPainter extends CustomPainter {
       );
     }
 
-    // Draw dots on top
-    for (final p in points) {
-      final dotColor = _dotColor(
-        p.reading.cents.abs().toDouble(),
-        p.reading.clarity,
+    final dotStep = math.max(1, points.length ~/ 80);
+    for (var i = 0; i < points.length; i += dotStep) {
+      final p = points[i];
+      final clarity = p.reading.clarity.clamp(0.0, 1.0);
+      final baseColor = clarity < 0.28
+          ? colors.pitchLowClarity
+          : colors.pitchPoint;
+      final radius = 0.9 + clarity * 0.8;
+      canvas.drawCircle(
+        Offset(p.x, p.y),
+        radius,
+        Paint()..color = baseColor.withValues(alpha: 0.52),
       );
-      final radius = 1.0 + 1.8 * p.reading.clarity.clamp(0.0, 1.0);
-      canvas.drawCircle(Offset(p.x, p.y), radius, Paint()..color = dotColor);
     }
+  }
+
+  List<_PitchPoint> _visiblePitchPoints(
+    double w,
+    double h,
+    int cursor,
+    List<PitchReading> source,
+  ) {
+    final noteMargin = _noteMargin;
+    final plotWidth = w - noteMargin;
+    final leftEdge = cursor - visibleDurationMs;
+    final points = <_PitchPoint>[];
+
+    for (final reading in source) {
+      if (!reading.hasPitch) continue;
+      if (reading.timestampMillis < leftEdge) continue;
+      if (reading.timestampMillis > cursor) continue;
+
+      final age = (cursor - reading.timestampMillis) / visibleDurationMs;
+      final x = noteMargin + plotWidth * (1 - age);
+      final midi = _midiValue(reading.frequency);
+      final y = _yForMidi(midi, h);
+      points.add(_PitchPoint(x, y, reading, midi));
+    }
+
+    return points;
+  }
+
+  Color _segmentColor(double clarity) {
+    if (clarity < 0.28) {
+      return colors.pitchLowClarity.withValues(alpha: 0.34);
+    }
+    return colors.pitchLine.withValues(alpha: 0.86);
+  }
+
+  double _midiValue(double frequency) {
+    return 69 + 12 * math.log(frequency / referenceA4Hz) / math.ln2;
+  }
+
+  double _yForMidi(double midi, double h) {
+    final normalized =
+        (midi - _effMinMidi).clamp(0.0, _effSemitones) / _effSemitones;
+    return h - normalized * h;
   }
 
   void _drawOverlayDots(Canvas canvas, double w, double h, int cursor) {
@@ -510,20 +565,10 @@ class PitchCanvasPainter extends CustomPainter {
 
       final age = (cursor - reading.timestampMillis) / visibleDurationMs;
       final x = noteMargin + plotWidth * (1 - age);
-      final midi = 69 + 12 * math.log(reading.frequency / 440) / math.ln2;
-      final normalized =
-          (midi - _effMinMidi).clamp(0.0, _effSemitones) / _effSemitones;
-      final y = h - normalized * h;
-      canvas.drawCircle(Offset(x, y), 1.5, Paint()..color = dotColor);
+      final midi = _midiValue(reading.frequency);
+      final y = _yForMidi(midi, h);
+      canvas.drawCircle(Offset(x, y), 1.3, Paint()..color = dotColor);
     }
-  }
-
-  Color _dotColor(double absCents, double clarity) {
-    if (clarity < 0.3) return colors.dotUnclear;
-    if (absCents <= 5) return colors.dotInTune;
-    if (absCents <= 15) return colors.dotSlightlyOff;
-    if (absCents <= 25) return colors.dotOff;
-    return colors.dotVeryOff;
   }
 
   @override
@@ -540,6 +585,8 @@ class PitchCanvasPainter extends CustomPainter {
         oldDelegate.playbackPositionMs != playbackPositionMs ||
         oldDelegate.overlayHistory != overlayHistory ||
         oldDelegate.minMidi != minMidi ||
-        oldDelegate.maxMidi != maxMidi;
+        oldDelegate.maxMidi != maxMidi ||
+        oldDelegate.referenceA4Hz != referenceA4Hz ||
+        oldDelegate.highlightedMidi != highlightedMidi;
   }
 }

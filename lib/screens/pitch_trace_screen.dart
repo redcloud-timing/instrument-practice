@@ -1,15 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../controllers/tuner_controller.dart';
-import '../models/tuner_reading.dart';
-import '../models/tuner_recording.dart';
-import 'tuner/pitch_canvas.dart';
-import 'tuner/recordings_sheet.dart';
-import 'tuner/tuner_settings_screen.dart';
+import '../controllers/pitch_trace_controller.dart';
+import '../models/pitch_reading.dart';
+import '../models/pitch_trace_recording.dart';
+import 'pitch_trace/pitch_canvas.dart';
+import 'pitch_trace/recordings_sheet.dart';
+import 'pitch_trace/pitch_trace_settings_screen.dart';
 
-class TunerCanvasColors {
-  const TunerCanvasColors({
+class PitchCanvasColors {
+  const PitchCanvasColors({
     required this.canvasBg,
     required this.loadedCanvasBg,
     required this.gridRoot,
@@ -31,6 +33,17 @@ class TunerCanvasColors {
     required this.dotOff,
     required this.dotVeryOff,
     required this.playbackCursor,
+    required this.pitchLine,
+    required this.pitchLineSoft,
+    required this.pitchPoint,
+    required this.pitchLowClarity,
+    required this.directionUp,
+    required this.directionDown,
+    required this.directionFlat,
+    required this.highlightNoteBg,
+    required this.highlightNoteLine,
+    required this.timeGridMajor,
+    required this.timeGridMinor,
     required this.statusInTune,
     required this.statusSlightlyOff,
     required this.statusOff,
@@ -58,13 +71,24 @@ class TunerCanvasColors {
   final Color dotOff;
   final Color dotVeryOff;
   final Color playbackCursor;
+  final Color pitchLine;
+  final Color pitchLineSoft;
+  final Color pitchPoint;
+  final Color pitchLowClarity;
+  final Color directionUp;
+  final Color directionDown;
+  final Color directionFlat;
+  final Color highlightNoteBg;
+  final Color highlightNoteLine;
+  final Color timeGridMajor;
+  final Color timeGridMinor;
   final Color statusInTune;
   final Color statusSlightlyOff;
   final Color statusOff;
   final Color recordingIcon;
 
-  factory TunerCanvasColors.fromColorScheme(ColorScheme cs) {
-    return TunerCanvasColors(
+  factory PitchCanvasColors.fromColorScheme(ColorScheme cs) {
+    return PitchCanvasColors(
       canvasBg: cs.surface,
       loadedCanvasBg: cs.surfaceContainerLow,
       gridRoot: cs.outlineVariant,
@@ -86,6 +110,17 @@ class TunerCanvasColors {
       dotOff: Colors.orange,
       dotVeryOff: cs.error,
       playbackCursor: Colors.deepOrangeAccent,
+      pitchLine: cs.primary,
+      pitchLineSoft: cs.primary.withValues(alpha: 0.62),
+      pitchPoint: cs.primary,
+      pitchLowClarity: cs.outline,
+      directionUp: Colors.deepOrange,
+      directionDown: Colors.blueAccent,
+      directionFlat: cs.primary,
+      highlightNoteBg: cs.primaryContainer.withValues(alpha: 0.55),
+      highlightNoteLine: cs.primary.withValues(alpha: 0.45),
+      timeGridMajor: cs.outlineVariant.withValues(alpha: 0.34),
+      timeGridMinor: cs.outlineVariant.withValues(alpha: 0.16),
       statusInTune: cs.primary,
       statusSlightlyOff: Colors.amber,
       statusOff: Colors.deepOrange,
@@ -96,51 +131,46 @@ class TunerCanvasColors {
 
 const _globalMinMidi = 36.0;
 const _globalMaxMidi = 108.0;
-const _noteMargin = 38.0;
-const _defaultVisibleDurationMs = 8000.0;
-const _defaultMidiSpan = 24.0;
-const _centerMidi = 72.0; // C5
+const _noteMargin = 48.0;
 
-class TunerScreen extends StatefulWidget {
-  const TunerScreen({super.key});
+class PitchTraceScreen extends StatefulWidget {
+  const PitchTraceScreen({super.key});
   @override
-  State<TunerScreen> createState() => _TunerScreenState();
+  State<PitchTraceScreen> createState() => _PitchTraceScreenState();
 }
 
-class _TunerScreenState extends State<TunerScreen> {
+class _PitchTraceScreenState extends State<PitchTraceScreen> {
   double _scrollOffsetMs = 0;
   double _verticalOffsetSemitones = 0;
   bool _autoFollow = true;
   int? _recordingStartMs;
-  double _visibleDurationMs = _defaultVisibleDurationMs;
-  double _midiSpan = _defaultMidiSpan;
+  bool _isPinching = false;
+  double _pinchStartVisibleDurationMs =
+      PitchTraceController.defaultVisibleDurationMs;
+  double _pinchStartMidiSpan = PitchTraceController.defaultMidiSpan;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<TunerController>().loadRecordings();
+        context.read<PitchTraceController>().loadRecordings();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<TunerController>();
+    final controller = context.watch<PitchTraceController>();
     final reading = controller.reading;
     final colorScheme = Theme.of(context).colorScheme;
-    final canvasColors = TunerCanvasColors.fromColorScheme(colorScheme);
+    final canvasColors = PitchCanvasColors.fromColorScheme(colorScheme);
 
     final hasLoadedRecording = controller.loadedRecordingHistory.isNotEmpty;
     final displayHistory = hasLoadedRecording
         ? controller.loadedRecordingHistory
         : controller.history;
     final history = displayHistory;
-
-    final hasActivePitch =
-        (controller.isRunning && (reading?.hasPitch ?? false)) ||
-        (hasLoadedRecording && history.isNotEmpty);
 
     int? latestTs;
     if (history.isNotEmpty) {
@@ -171,26 +201,37 @@ class _TunerScreenState extends State<TunerScreen> {
     final cursorTs = baseCursorMs != null
         ? baseCursorMs - _scrollOffsetMs.toInt()
         : null;
+    final topBarReading = _topBarReading(controller, history, cursorTs);
+    final hasTopBarPitch = topBarReading?.hasPitch ?? false;
 
     int? recordingStartForAxis = _recordingStartMs;
     if (hasLoadedRecording && history.isNotEmpty) {
       recordingStartForAxis = history.first.timestampMillis;
     }
+    final cursorElapsedText = _formatCursorElapsed(
+      cursorTs,
+      recordingStartForAxis,
+    );
+    final highlightedMidi = hasTopBarPitch
+        ? topBarReading!.midiNumberFor(controller.referenceA4Hz)
+        : null;
 
     final hasLatestRecording = controller.latestRecordingPath != null;
     final recordings = controller.recordings;
+    final visibleDurationMs = controller.visibleDurationMs;
+    final midiSpan = controller.midiSpan;
 
     return SafeArea(
       bottom: false,
       child: Column(
         children: [
           _TopBar(
-            noteLabel: hasActivePitch
-                ? (reading?.hasPitch ?? false ? reading!.noteLabel : '--')
+            noteLabel: hasTopBarPitch
+                ? topBarReading!.noteLabelFor(controller.referenceA4Hz)
                 : '--',
-            cents: (reading?.hasPitch ?? false) ? reading!.cents : 0,
-            frequency: (reading?.hasPitch ?? false) ? reading!.frequency : 0,
-            hasPitch: hasActivePitch,
+            frequency: hasTopBarPitch ? topBarReading!.frequency : 0,
+            hasPitch: hasTopBarPitch,
+            cursorElapsedText: cursorElapsedText,
             isRunning: controller.isRunning,
             hasLoadedRecording: hasLoadedRecording,
             recordingDuration: hasLoadedRecording && history.isNotEmpty
@@ -201,6 +242,8 @@ class _TunerScreenState extends State<TunerScreen> {
                         .round(),
                   )
                 : null,
+            visibleDurationMs: visibleDurationMs,
+            midiSpan: midiSpan,
             onSettingsTap: () => _openSettings(context),
           ),
           Expanded(
@@ -214,14 +257,25 @@ class _TunerScreenState extends State<TunerScreen> {
                     builder: (context, constraints) {
                       final canvasH = constraints.maxHeight;
                       final canvasW = constraints.maxWidth;
-                      final effectiveMinMidi = _centerMidi - _midiSpan / 2;
-                      final effectiveMaxMidi = _centerMidi + _midiSpan / 2;
-                      final semitonesPerPixel = _midiSpan / canvasH;
+                      final effectiveCenterMidi = controller.centerMidi
+                          .toDouble();
+                      final effectiveMinMidi =
+                          effectiveCenterMidi - midiSpan / 2;
+                      final effectiveMaxMidi =
+                          effectiveCenterMidi + midiSpan / 2;
+                      final semitonesPerPixel = midiSpan / canvasH;
                       final historyNotEmpty = history.isNotEmpty;
 
                       return Stack(
                         children: [
                           GestureDetector(
+                            onScaleStart: (details) {
+                              if (details.pointerCount >= 2) {
+                                _beginPinchZoom(controller);
+                              } else {
+                                _isPinching = false;
+                              }
+                            },
                             onScaleUpdate: (details) {
                               if (!historyNotEmpty ||
                                   (controller.isPlaying &&
@@ -233,31 +287,29 @@ class _TunerScreenState extends State<TunerScreen> {
                               setState(() {
                                 _autoFollow = false;
                                 if (details.pointerCount >= 2) {
-                                  // Pinch zoom (damped for controllability)
-                                  const damping = 0.4;
-                                  final hScale =
-                                      1.0 +
-                                      (details.horizontalScale - 1.0) * damping;
-                                  final vScale =
-                                      1.0 +
-                                      (details.verticalScale - 1.0) * damping;
-                                  final newDuration =
-                                      (_visibleDurationMs / hScale).clamp(
-                                        2000.0,
-                                        30000.0,
-                                      );
-                                  _visibleDurationMs = newDuration;
-
-                                  final newSpan = (_midiSpan / vScale).clamp(
-                                    12.0,
-                                    48.0,
+                                  if (!_isPinching) {
+                                    _beginPinchZoom(controller);
+                                  }
+                                  final hScale = _dampedPinchScale(
+                                    details.horizontalScale,
                                   );
-                                  _midiSpan = newSpan;
+                                  final vScale = _dampedPinchScale(
+                                    details.verticalScale,
+                                  );
+                                  final newDuration =
+                                      (_pinchStartVisibleDurationMs / hScale)
+                                          .clamp(3000.0, 30000.0);
+                                  controller.setVisibleDurationMs(newDuration);
+
+                                  final newSpan = (_pinchStartMidiSpan / vScale)
+                                      .clamp(12.0, 48.0);
+                                  controller.setMidiSpan(newSpan);
                                 } else {
+                                  _isPinching = false;
                                   // Single finger pan
                                   final effectivePixelsPerMs =
                                       (canvasW - _noteMargin) /
-                                      _visibleDurationMs;
+                                      visibleDurationMs;
                                   _scrollOffsetMs -=
                                       details.focalPointDelta.dx /
                                       effectivePixelsPerMs;
@@ -274,6 +326,7 @@ class _TunerScreenState extends State<TunerScreen> {
                                       history,
                                       baseCursorMs,
                                       isFrozen,
+                                      visibleDurationMs,
                                     ),
                                   );
                                   _verticalOffsetSemitones +=
@@ -288,6 +341,7 @@ class _TunerScreenState extends State<TunerScreen> {
                               });
                             },
                             onScaleEnd: (details) {
+                              _isPinching = false;
                               if (_scrollOffsetMs < 1) {
                                 setState(() {
                                   _scrollOffsetMs = 0;
@@ -299,7 +353,7 @@ class _TunerScreenState extends State<TunerScreen> {
                               painter: PitchCanvasPainter(
                                 history: history,
                                 cursorTimestamp: cursorTs,
-                                visibleDurationMs: _visibleDurationMs.toInt(),
+                                visibleDurationMs: visibleDurationMs.toInt(),
                                 verticalOffsetSemitones:
                                     _verticalOffsetSemitones,
                                 isRunning: controller.isRunning,
@@ -315,6 +369,8 @@ class _TunerScreenState extends State<TunerScreen> {
                                 colors: canvasColors,
                                 minMidi: effectiveMinMidi,
                                 maxMidi: effectiveMaxMidi,
+                                referenceA4Hz: controller.referenceA4Hz,
+                                highlightedMidi: highlightedMidi,
                                 overlayHistory: controller.overlayHistory,
                               ),
                               size: Size.infinite,
@@ -381,7 +437,7 @@ class _TunerScreenState extends State<TunerScreen> {
                                     controller.playbackPositionMs,
                                 recordingFirstMs: history.first.timestampMillis,
                                 cursorTimestamp: cursorTs!,
-                                visibleDurationMs: _visibleDurationMs.toInt(),
+                                visibleDurationMs: visibleDurationMs.toInt(),
                                 colors: canvasColors,
                               ),
                             ),
@@ -395,7 +451,7 @@ class _TunerScreenState extends State<TunerScreen> {
           ),
           TimeAxis(
             cursorTimestamp: cursorTs,
-            visibleDurationMs: _visibleDurationMs.toInt(),
+            visibleDurationMs: visibleDurationMs.toInt(),
             scrollOffsetMs: _scrollOffsetMs,
             autoFollow: _autoFollow,
             historyNotEmpty: history.isNotEmpty,
@@ -427,7 +483,7 @@ class _TunerScreenState extends State<TunerScreen> {
                   _PauseRecordButton(
                     isPaused: controller.isRecordingPaused,
                     onTap: () {
-                      final ctrl = context.read<TunerController>();
+                      final ctrl = context.read<PitchTraceController>();
                       if (controller.isRecordingPaused) {
                         ctrl.resumeRecording();
                         setState(() {
@@ -444,7 +500,7 @@ class _TunerScreenState extends State<TunerScreen> {
                 _MicButton(
                   isRunning: controller.isRunning,
                   isBusy: controller.isBusy,
-                  onTap: () => context.read<TunerController>().toggle(),
+                  onTap: () => context.read<PitchTraceController>().toggle(),
                 ),
               ],
             ),
@@ -455,10 +511,10 @@ class _TunerScreenState extends State<TunerScreen> {
   }
 
   Widget _buildRecordingArea(
-    TunerController controller,
+    PitchTraceController controller,
     bool hasLatestRecording,
     bool hasLoadedRecording,
-    List<TunerRecording> recordings,
+    List<PitchTraceRecording> recordings,
   ) {
     if (controller.isPlaying && !controller.isRunning) {
       final totalMs =
@@ -481,7 +537,9 @@ class _TunerScreenState extends State<TunerScreen> {
 
     if (!controller.isRunning && hasLatestRecording && !controller.isPlaying) {
       return LatestRecordingChip(
-        name: controller.latestRecordingPath?.split('/').last ?? '录音',
+        name: controller.latestRecordingPath == null
+            ? '录音'
+            : controller.recordingDisplayName(controller.latestRecordingPath!),
         isPlaying: controller.isPlaying,
         playingPath: controller.playingPath,
         latestPath: controller.latestRecordingPath ?? '',
@@ -509,9 +567,10 @@ class _TunerScreenState extends State<TunerScreen> {
   }
 
   double _maxScrollMs(
-    List<TunerReading> history,
+    List<PitchReading> history,
     int? baseCursorMs,
     bool isPaused,
+    double visibleDurationMs,
   ) {
     if (history.length < 2) return 0;
     if (isPaused && baseCursorMs != null) {
@@ -519,13 +578,13 @@ class _TunerScreenState extends State<TunerScreen> {
     }
     return (history.last.timestampMillis -
             history.first.timestampMillis -
-            _visibleDurationMs)
+            visibleDurationMs)
         .toDouble()
         .clamp(0, double.infinity);
   }
 
   double _minScrollMs(
-    List<TunerReading> history,
+    List<PitchReading> history,
     int? baseCursorMs,
     bool isPaused,
   ) {
@@ -535,6 +594,36 @@ class _TunerScreenState extends State<TunerScreen> {
     return 0.0;
   }
 
+  void _beginPinchZoom(PitchTraceController controller) {
+    _isPinching = true;
+    _pinchStartVisibleDurationMs = controller.visibleDurationMs;
+    _pinchStartMidiSpan = controller.midiSpan;
+  }
+
+  double _dampedPinchScale(double rawScale) {
+    if (rawScale <= 0) return 1;
+    const damping = 0.55;
+    return math.pow(rawScale, damping).toDouble();
+  }
+
+  PitchReading? _topBarReading(
+    PitchTraceController controller,
+    List<PitchReading> history,
+    int? cursorTs,
+  ) {
+    final liveReading = controller.reading;
+    if (controller.isRunning && !controller.isRecordingPaused) {
+      return (liveReading?.hasPitch ?? false) ? liveReading : null;
+    }
+
+    if (history.isEmpty) return null;
+    final targetTs = cursorTs ?? history.last.timestampMillis;
+    for (final reading in history.reversed) {
+      if (reading.timestampMillis <= targetTs) return reading;
+    }
+    return history.first;
+  }
+
   String _formatDuration(int seconds) {
     final mins = seconds ~/ 60;
     final secs = seconds % 60;
@@ -542,10 +631,21 @@ class _TunerScreenState extends State<TunerScreen> {
     return '$secs 秒';
   }
 
+  String? _formatCursorElapsed(int? cursorTs, int? recordingStartMs) {
+    if (cursorTs == null || recordingStartMs == null) return null;
+    final elapsedMs = math.max(0, cursorTs - recordingStartMs);
+    final minutes = elapsedMs ~/ 60000;
+    final seconds = (elapsedMs % 60000) / 1000;
+    if (minutes > 0) {
+      return '$minutes:${seconds.toStringAsFixed(1).padLeft(4, '0')}';
+    }
+    return '${seconds.toStringAsFixed(1)}s';
+  }
+
   void _openSettings(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const TunerSettingsScreen()),
+      MaterialPageRoute(builder: (_) => const PitchTraceSettingsScreen()),
     );
   }
 
@@ -611,57 +711,59 @@ class _FloatingButton extends StatelessWidget {
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.noteLabel,
-    required this.cents,
     required this.frequency,
     required this.hasPitch,
+    required this.cursorElapsedText,
     required this.isRunning,
     required this.hasLoadedRecording,
     required this.recordingDuration,
+    required this.visibleDurationMs,
+    required this.midiSpan,
     required this.onSettingsTap,
   });
   final String noteLabel;
-  final int cents;
   final double frequency;
   final bool hasPitch;
+  final String? cursorElapsedText;
   final bool isRunning;
   final bool hasLoadedRecording;
   final String? recordingDuration;
+  final double visibleDurationMs;
+  final double midiSpan;
   final VoidCallback onSettingsTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final centsText = hasPitch
-        ? '${cents > 0 ? '+' : ''}$cents \u{00A2}'
-        : '--';
     final freqText = hasPitch ? '${frequency.toStringAsFixed(1)} Hz' : '--';
+    final timeText = cursorElapsedText ?? '--';
+    final windowText =
+        '${(visibleDurationMs / 1000).round()}秒 · ${midiSpan.round()}半音';
 
     final statusColor = !isRunning && !hasLoadedRecording
         ? colorScheme.outline
         : !hasPitch
         ? Colors.grey
-        : cents.abs() <= 5
-        ? colorScheme.primary
-        : cents.abs() <= 15
-        ? Colors.amber
-        : Colors.deepOrange;
+        : colorScheme.primary;
 
-    final controller = context.watch<TunerController>();
+    final controller = context.watch<PitchTraceController>();
     String subtitle;
     if (isRunning && controller.isRecordingPaused) {
       subtitle = '录音已暂停';
     } else if (isRunning) {
-      subtitle = hasPitch ? freqText : '等待声音输入...';
+      subtitle = hasPitch ? '$timeText · $freqText' : '等待声音输入...';
     } else if (hasLoadedRecording) {
-      subtitle = recordingDuration != null
+      subtitle = hasPitch
+          ? '$timeText · $freqText'
+          : recordingDuration != null
           ? '录音时长: $recordingDuration'
           : '查看录音音高数据';
     } else {
-      subtitle = '点击下方按钮开始调音';
+      subtitle = '点击下方按钮开始记录';
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 2),
       child: Row(
         children: [
           Expanded(
@@ -682,22 +784,14 @@ class _TopBar extends StatelessWidget {
                     const SizedBox(width: 8),
                     if (hasPitch)
                       Text(
-                        centsText,
+                        freqText,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               color: statusColor,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                             ),
                       ),
                   ],
-                ),
-                const SizedBox(height: 4),
-                _CentsIndicatorBar(
-                  cents: hasPitch ? cents : 0,
-                  hasPitch: hasPitch,
-                  inTuneColor: colorScheme.primary,
-                  offColor: colorScheme.error,
-                  trackColor: colorScheme.outlineVariant,
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -706,13 +800,20 @@ class _TopBar extends StatelessWidget {
                     color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  '窗口 $windowText',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.45),
+                  ),
+                ),
               ],
             ),
           ),
           IconButton(
             onPressed: onSettingsTap,
             icon: const Icon(Icons.settings_outlined, size: 22),
-            tooltip: '调音器设置',
+            tooltip: '音高轨迹设置',
             style: IconButton.styleFrom(
               minimumSize: const Size(40, 40),
               padding: EdgeInsets.zero,
@@ -721,111 +822,6 @@ class _TopBar extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _CentsIndicatorBar extends StatelessWidget {
-  const _CentsIndicatorBar({
-    required this.cents,
-    required this.hasPitch,
-    required this.inTuneColor,
-    required this.offColor,
-    required this.trackColor,
-  });
-
-  final int cents;
-  final bool hasPitch;
-  final Color inTuneColor;
-  final Color offColor;
-  final Color trackColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 6,
-      child: CustomPaint(
-        size: const Size(double.infinity, 6),
-        painter: _CentsIndicatorPainter(
-          cents: cents,
-          hasPitch: hasPitch,
-          inTuneColor: inTuneColor,
-          offColor: offColor,
-          trackColor: trackColor,
-        ),
-      ),
-    );
-  }
-}
-
-class _CentsIndicatorPainter extends CustomPainter {
-  _CentsIndicatorPainter({
-    required this.cents,
-    required this.hasPitch,
-    required this.inTuneColor,
-    required this.offColor,
-    required this.trackColor,
-  });
-
-  final int cents;
-  final bool hasPitch;
-  final Color inTuneColor;
-  final Color offColor;
-  final Color trackColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final centerY = h / 2;
-    final trackRect = RRect.fromLTRBR(0, 0, w, h, Radius.circular(centerY));
-
-    // Background track
-    canvas.drawRRect(
-      trackRect,
-      Paint()..color = trackColor.withValues(alpha: 0.3),
-    );
-
-    if (!hasPitch) return;
-
-    // Gradient: center green → edges yellow/red
-    final gradientPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          offColor,
-          offColor.withValues(alpha: 0.7),
-          inTuneColor.withValues(alpha: 0.6),
-          inTuneColor,
-          inTuneColor.withValues(alpha: 0.6),
-          offColor.withValues(alpha: 0.7),
-          offColor,
-        ],
-        stops: const [0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-    canvas.drawRRect(trackRect, gradientPaint);
-
-    // Center marker
-    final centerX = w / 2;
-    canvas.drawLine(
-      Offset(centerX, 0),
-      Offset(centerX, h),
-      Paint()
-        ..color = Colors.white.withValues(alpha: 0.8)
-        ..strokeWidth = 1.5,
-    );
-
-    // Current cents position dot (clamp to -50..+50)
-    final clampedCents = cents.clamp(-50, 50);
-    final dotX = centerX + (clampedCents / 50.0) * centerX;
-    canvas.drawCircle(
-      Offset(dotX, centerY),
-      centerY + 1,
-      Paint()..color = Colors.white,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _CentsIndicatorPainter oldDelegate) {
-    return oldDelegate.cents != cents || oldDelegate.hasPitch != hasPitch;
   }
 }
 

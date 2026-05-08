@@ -31,25 +31,24 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 class MainActivity : FlutterActivity() {
     private val metronomeChannelName = "flute_practice/metronome"
     private val documentsChannelName = "flute_practice/documents"
-    private val tunerChannelName = "flute_practice/tuner"
-    private val tunerEventChannelName = "flute_practice/tuner_events"
+    private val pitchTraceChannelName = "flute_practice/pitch_trace"
+    private val pitchTraceEventChannelName = "flute_practice/pitch_trace_events"
     private val pickDocumentRequestCode = 4701
     private val pickImageRequestCode = 4702
-    private val tunerPermissionRequestCode = 4801
+    private val pitchTracePermissionRequestCode = 4801
     private var toneGenerator: ToneGenerator? = null
     private var pendingPickResult: MethodChannel.Result? = null
-    private var pendingTunerStartResult: MethodChannel.Result? = null
-    private var tunerEventSink: EventChannel.EventSink? = null
+    private var pendingPitchTraceStartResult: MethodChannel.Result? = null
+    private var pendingPitchTraceMinFrequency = 80.0
+    private var pendingPitchTraceMaxFrequency = 2200.0
+    private var pitchTraceEventSink: EventChannel.EventSink? = null
     private var pitchTracker: PitchTracker? = null
     private var mediaPlayer: MediaPlayer? = null
 
@@ -121,12 +120,16 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            tunerChannelName
+            pitchTraceChannelName
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "start" -> startTuner(result)
+                "start" -> {
+                    val minFrequency = call.argument<Double>("minFrequency") ?: 80.0
+                    val maxFrequency = call.argument<Double>("maxFrequency") ?: 2200.0
+                    startPitchTrace(minFrequency, maxFrequency, result)
+                }
                 "stop" -> {
-                    val recordingPath = stopTuner()
+                    val recordingPath = stopPitchTrace()
                     result.success(mapOf("recordingPath" to recordingPath))
                 }
                 "listRecordings" -> listRecordings(result)
@@ -164,11 +167,11 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "pauseRecording" -> {
-                    pauseRecordingTuner()
+                    pausePitchTraceRecording()
                     result.success(null)
                 }
                 "resumeRecording" -> {
-                    resumeRecordingTuner()
+                    resumePitchTraceRecording()
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -177,34 +180,40 @@ class MainActivity : FlutterActivity() {
 
         EventChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            tunerEventChannelName
+            pitchTraceEventChannelName
         ).setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                tunerEventSink = events
+                pitchTraceEventSink = events
             }
 
             override fun onCancel(arguments: Any?) {
-                tunerEventSink = null
+                pitchTraceEventSink = null
             }
         })
     }
 
-    private fun startTuner(result: MethodChannel.Result) {
+    private fun startPitchTrace(
+        minFrequency: Double,
+        maxFrequency: Double,
+        result: MethodChannel.Result
+    ) {
         if (hasMicrophonePermission()) {
-            startTunerWithResult(result)
+            startPitchTraceWithResult(minFrequency, maxFrequency, result)
             return
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (pendingTunerStartResult != null) {
+            if (pendingPitchTraceStartResult != null) {
                 result.error("PERMISSION_PENDING", "正在等待麦克风权限。", null)
                 return
             }
 
-            pendingTunerStartResult = result
+            pendingPitchTraceStartResult = result
+            pendingPitchTraceMinFrequency = minFrequency
+            pendingPitchTraceMaxFrequency = maxFrequency
             requestPermissions(
                 arrayOf(Manifest.permission.RECORD_AUDIO),
-                tunerPermissionRequestCode
+                pitchTracePermissionRequestCode
             )
             return
         }
@@ -212,35 +221,40 @@ class MainActivity : FlutterActivity() {
         result.error("MIC_PERMISSION_DENIED", "没有麦克风权限。", null)
     }
 
-    private fun startTunerWithResult(result: MethodChannel.Result) {
+    private fun startPitchTraceWithResult(
+        minFrequency: Double,
+        maxFrequency: Double,
+        result: MethodChannel.Result
+    ) {
         try {
             if (pitchTracker == null) {
                 pitchTracker = PitchTracker(
                     { reading ->
                         runOnUiThread {
-                            tunerEventSink?.success(reading)
+                            pitchTraceEventSink?.success(reading)
                         }
                     },
                     File(filesDir, "recordings")
                 )
             }
 
+            pitchTracker?.setFrequencyRange(minFrequency, maxFrequency)
             pitchTracker?.start()
             result.success(null)
         } catch (error: RuntimeException) {
-            result.error("TUNER_START_FAILED", error.message, null)
+            result.error("PITCH_TRACE_START_FAILED", error.message, null)
         }
     }
 
-    private fun stopTuner(): String? {
+    private fun stopPitchTrace(): String? {
         return pitchTracker?.stop()
     }
 
-    private fun pauseRecordingTuner() {
+    private fun pausePitchTraceRecording() {
         pitchTracker?.pause()
     }
 
-    private fun resumeRecordingTuner() {
+    private fun resumePitchTraceRecording() {
         pitchTracker?.resume()
     }
 
@@ -255,16 +269,20 @@ class MainActivity : FlutterActivity() {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        if (requestCode == tunerPermissionRequestCode) {
-            val result = pendingTunerStartResult ?: return
-            pendingTunerStartResult = null
+        if (requestCode == pitchTracePermissionRequestCode) {
+            val result = pendingPitchTraceStartResult ?: return
+            pendingPitchTraceStartResult = null
 
             if (grantResults.isNotEmpty() &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             ) {
-                startTunerWithResult(result)
+                startPitchTraceWithResult(
+                    pendingPitchTraceMinFrequency,
+                    pendingPitchTraceMaxFrequency,
+                    result
+                )
             } else {
-                result.error("MIC_PERMISSION_DENIED", "请允许麦克风权限后再使用调音器。", null)
+                result.error("MIC_PERMISSION_DENIED", "请允许麦克风权限后再使用音高轨迹。", null)
             }
             return
         }
@@ -701,7 +719,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         stopPlaybackInternal()
-        stopTuner()
+        stopPitchTrace()
         toneGenerator?.release()
         toneGenerator = null
         super.onDestroy()
@@ -713,16 +731,31 @@ class MainActivity : FlutterActivity() {
     ) {
         private val sampleRate = 44100
         private val windowSize = 4096
-        private val minFrequency = 120.0
-        private val maxFrequency = 2400.0
+        @Volatile
+        private var minFrequency = 80.0
+        @Volatile
+        private var maxFrequency = 2200.0
 
         @Volatile
         private var running = false
 
         private var worker: Thread? = null
         private var recorder: AudioRecord? = null
-        private var smoothedFrequency = 0.0
         private val pcmShorts = mutableListOf<Short>()
+
+        fun setFrequencyRange(minFrequency: Double, maxFrequency: Double) {
+            val low = minFrequency.coerceIn(80.0, 2600.0)
+            val high = maxFrequency.coerceIn(80.0, 2600.0)
+            val cleanLow = min(low, high)
+            val cleanHigh = max(low, high)
+            if (cleanHigh - cleanLow < 50.0) {
+                this.minFrequency = cleanLow
+                this.maxFrequency = (cleanLow + 50.0).coerceAtMost(2600.0)
+                return
+            }
+            this.minFrequency = cleanLow
+            this.maxFrequency = cleanHigh
+        }
 
         @Suppress("MissingPermission")
         fun start() {
@@ -777,7 +810,7 @@ class MainActivity : FlutterActivity() {
                     newRecorder.release()
                 }
             }.also { thread ->
-                thread.name = "FluteTunerPitchTracker"
+                thread.name = "FlutePitchTraceTracker"
                 thread.start()
             }
         }
@@ -790,7 +823,6 @@ class MainActivity : FlutterActivity() {
             try { recorder?.stop() } catch (_: RuntimeException) {}
             recorder?.release()
             recorder = null
-            smoothedFrequency = 0.0
         }
 
         @Suppress("MissingPermission")
@@ -847,7 +879,7 @@ class MainActivity : FlutterActivity() {
                     newRecorder.release()
                 }
             }.also { thread ->
-                thread.name = "FluteTunerPitchTracker"
+                thread.name = "FlutePitchTraceTracker"
                 thread.start()
             }
         }
@@ -857,7 +889,6 @@ class MainActivity : FlutterActivity() {
             worker?.join(250)
             worker = null
             recorder = null
-            smoothedFrequency = 0.0
 
             val path = if (pcmShorts.isNotEmpty()) {
                 writeWav()
@@ -933,106 +964,108 @@ class MainActivity : FlutterActivity() {
             val samples = DoubleArray(read)
             var energy = 0.0
             for (i in 0 until read) {
-                val value = (buffer[i].toDouble() - mean) / Short.MAX_VALUE
-                val window = 0.5 - 0.5 * cos(2.0 * Math.PI * i / (read - 1))
-                val sample = value * window
+                val sample = (buffer[i].toDouble() - mean) / Short.MAX_VALUE
                 samples[i] = sample
                 energy += sample * sample
             }
 
             val amplitude = sqrt(energy / read)
-            if (amplitude < 0.008) {
-                smoothedFrequency = 0.0
+            if (amplitude < 0.006) {
                 return reading(0.0, amplitude, 0.0)
             }
 
-            val minLag = max(1, (sampleRate / maxFrequency).toInt())
+            val minLag = max(2, (sampleRate / maxFrequency).toInt())
             val maxLag = min(read - 2, (sampleRate / minFrequency).toInt())
-            var bestLag = 0
-            var bestCorrelation = 0.0
-
-            for (lag in minLag..maxLag) {
-                var correlation = 0.0
-                var leftEnergy = 0.0
-                var rightEnergy = 0.0
-
-                val length = read - lag
-                for (i in 0 until length) {
-                    val left = samples[i]
-                    val right = samples[i + lag]
-                    correlation += left * right
-                    leftEnergy += left * left
-                    rightEnergy += right * right
-                }
-
-                val normalized = if (leftEnergy > 0 && rightEnergy > 0) {
-                    correlation / sqrt(leftEnergy * rightEnergy)
-                } else {
-                    0.0
-                }
-
-                if (normalized > bestCorrelation) {
-                    bestCorrelation = normalized
-                    bestLag = lag
-                }
+            if (maxLag <= minLag + 2) {
+                return reading(0.0, amplitude, 0.0)
             }
 
-            if (bestLag <= 0 || bestCorrelation < 0.45) {
-                smoothedFrequency = 0.0
-                return reading(0.0, amplitude, bestCorrelation.coerceIn(0.0, 1.0))
+            val detected = detectFundamentalLag(samples, read, minLag, maxLag)
+            if (detected == null) {
+                return reading(0.0, amplitude, 0.0)
             }
 
-            val refinedLag = refineLag(samples, read, bestLag)
-            val rawFrequency = sampleRate / refinedLag
-            val frequency = if (smoothedFrequency <= 0) {
-                rawFrequency
-            } else if (abs(rawFrequency - smoothedFrequency) > smoothedFrequency * 0.18) {
-                rawFrequency
-            } else {
-                smoothedFrequency * 0.72 + rawFrequency * 0.28
-            }
-
-            smoothedFrequency = frequency
-            return reading(frequency, amplitude, bestCorrelation.coerceIn(0.0, 1.0))
+            val frequency = sampleRate / detected.lag
+            return reading(frequency, amplitude, detected.clarity)
         }
 
-        private fun refineLag(samples: DoubleArray, read: Int, lag: Int): Double {
-            if (lag <= 1 || lag >= read - 2) return lag.toDouble()
+        private data class PitchLagResult(
+            val lag: Double,
+            val clarity: Double
+        )
 
-            val left = normalizedCorrelation(samples, read, lag - 1)
-            val center = normalizedCorrelation(samples, read, lag)
-            val right = normalizedCorrelation(samples, read, lag + 1)
+        private fun detectFundamentalLag(
+            samples: DoubleArray,
+            read: Int,
+            minLag: Int,
+            maxLag: Int
+        ): PitchLagResult? {
+            val yin = DoubleArray(maxLag + 1)
+            for (lag in 1..maxLag) {
+                var difference = 0.0
+                val length = read - lag
+                for (i in 0 until length) {
+                    val delta = samples[i] - samples[i + lag]
+                    difference += delta * delta
+                }
+                yin[lag] = difference
+            }
+
+            var cumulative = 0.0
+            var bestLag = minLag
+            var bestValue = Double.MAX_VALUE
+            for (lag in 1..maxLag) {
+                cumulative += yin[lag]
+                yin[lag] = if (cumulative > 0.0) {
+                    yin[lag] * lag / cumulative
+                } else {
+                    1.0
+                }
+                if (lag >= minLag && yin[lag] < bestValue) {
+                    bestLag = lag
+                    bestValue = yin[lag]
+                }
+            }
+
+            val threshold = 0.18
+            var selectedLag = 0
+            var lag = minLag
+            while (lag <= maxLag) {
+                if (yin[lag] < threshold) {
+                    selectedLag = lag
+                    while (selectedLag + 1 <= maxLag &&
+                        yin[selectedLag + 1] < yin[selectedLag]
+                    ) {
+                        selectedLag++
+                    }
+                    break
+                }
+                lag++
+            }
+
+            if (selectedLag == 0) {
+                if (bestValue > 0.32) return null
+                selectedLag = bestLag
+            }
+
+            val clarity = (1.0 - yin[selectedLag]).coerceIn(0.0, 1.0)
+            if (clarity < 0.52) return null
+
+            return PitchLagResult(refineYinLag(yin, selectedLag), clarity)
+        }
+
+        private fun refineYinLag(yin: DoubleArray, lag: Int): Double {
+            if (lag <= 1 || lag >= yin.size - 2) return lag.toDouble()
+
+            val left = yin[lag - 1]
+            val center = yin[lag]
+            val right = yin[lag + 1]
             val denominator = left - 2 * center + right
 
             if (abs(denominator) < 1e-9) return lag.toDouble()
 
             val offset = 0.5 * (left - right) / denominator
             return lag + offset.coerceIn(-0.5, 0.5)
-        }
-
-        private fun normalizedCorrelation(
-            samples: DoubleArray,
-            read: Int,
-            lag: Int
-        ): Double {
-            var correlation = 0.0
-            var leftEnergy = 0.0
-            var rightEnergy = 0.0
-            val length = read - lag
-
-            for (i in 0 until length) {
-                val left = samples[i]
-                val right = samples[i + lag]
-                correlation += left * right
-                leftEnergy += left * left
-                rightEnergy += right * right
-            }
-
-            return if (leftEnergy > 0 && rightEnergy > 0) {
-                correlation / sqrt(leftEnergy * rightEnergy)
-            } else {
-                0.0
-            }
         }
 
         private fun reading(

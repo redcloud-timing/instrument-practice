@@ -4,7 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'controllers/theme_controller.dart';
-import 'controllers/tuner_controller.dart';
+import 'controllers/pitch_trace_controller.dart';
 import 'controllers/metronome_controller.dart';
 import 'controllers/practice_controller.dart';
 import 'controllers/library_controller.dart';
@@ -12,11 +12,11 @@ import 'screens/home_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/metronome_screen.dart';
 import 'screens/theme_settings_screen.dart';
-import 'screens/tuner_screen.dart';
+import 'screens/pitch_trace_screen.dart';
 import 'services/database_service.dart';
 import 'services/document_library_service.dart';
 import 'services/metronome_sound_service.dart';
-import 'services/tuner_service.dart';
+import 'services/pitch_trace_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +41,11 @@ Future<void> main() async {
               LibraryController(databaseService, DocumentLibraryService())
                 ..init(),
         ),
-        ChangeNotifierProvider(create: (_) => TunerController(TunerService())),
+        ChangeNotifierProvider(
+          create: (_) =>
+              PitchTraceController(databaseService, PitchTraceService())
+                ..init(),
+        ),
         ChangeNotifierProvider(
           create: (_) => ThemeController(databaseService)..init(),
         ),
@@ -211,7 +215,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     MetronomeScreen(),
     LibraryScreen(),
-    TunerScreen(),
+    PitchTraceScreen(),
   ];
 
   Future<void> _pickHomePracticeImage() async {
@@ -304,9 +308,9 @@ class _MainShellState extends State<MainShell> {
             label: '资料',
           ),
           NavigationDestination(
-            icon: Icon(Icons.tune_outlined),
-            selectedIcon: Icon(Icons.tune),
-            label: '调音器',
+            icon: Icon(Icons.show_chart),
+            selectedIcon: Icon(Icons.show_chart),
+            label: '音高轨迹',
           ),
         ],
       ),
