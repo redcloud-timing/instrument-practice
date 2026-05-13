@@ -124,17 +124,19 @@ class ControlPanel extends StatelessWidget {
                             bottomRight: Radius.circular(12),
                           ),
                         ),
-                        child: IconButton(
-                          onPressed: () =>
+                        child: InkWell(
+                          onTap: () =>
                               context.read<MetronomeController>().toggle(),
-                          icon: Icon(
-                            controller.isRunning
-                                ? Icons.stop
-                                : Icons.play_arrow,
-                            size: 28,
+                          borderRadius: const BorderRadius.only(
+                            bottomRight: Radius.circular(12),
                           ),
-                          style: IconButton.styleFrom(
-                            minimumSize: Size.fromHeight(52),
+                          child: Center(
+                            child: Icon(
+                              controller.isRunning
+                                  ? Icons.stop
+                                  : Icons.play_arrow,
+                              size: 28,
+                            ),
                           ),
                         ),
                       ),

@@ -548,7 +548,7 @@ class PitchCanvasPainter extends CustomPainter {
 
   double _yForMidi(double midi, double h) {
     final normalized =
-        (midi - _effMinMidi).clamp(0.0, _effSemitones) / _effSemitones;
+        (midi - _effMinMidi + 0.5).clamp(0.0, _effSemitones) / _effSemitones;
     return h - normalized * h;
   }
 

@@ -556,7 +556,7 @@ class MainActivity : FlutterActivity() {
 
         val generator = toneGenerator ?: ToneGenerator(
             AudioManager.STREAM_MUSIC,
-            90
+            100
         ).also { toneGenerator = it }
 
         generator.startTone(toneTypeFor(role, soundStyle), durationFor(role))

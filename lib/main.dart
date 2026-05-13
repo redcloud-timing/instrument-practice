@@ -63,7 +63,7 @@ class FlutePracticeApp extends StatelessWidget {
     final themeController = context.watch<ThemeController>();
 
     return MaterialApp(
-      title: '长笛练习',
+      title: '练琴乐时',
       debugShowCheckedModeBanner: false,
       themeMode: themeController.themeMode,
       locale: const Locale('zh', 'CN'),
@@ -239,10 +239,13 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final hasCustomImage =
+        context.watch<PracticeController>().homePracticeImage != null;
+
     return Scaffold(
       appBar: _index == 0
           ? AppBar(
-              title: const Text('长笛练习'),
+              title: const Text('练琴乐时'),
               centerTitle: true,
               actions: [
                 PopupMenuButton<String>(
@@ -252,6 +255,15 @@ class _MainShellState extends State<MainShell> {
                     switch (value) {
                       case 'image':
                         _pickHomePracticeImage();
+                        break;
+                      case 'reset_image':
+                        context
+                            .read<PracticeController>()
+                            .clearHomePracticeImage();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已恢复默认练习图片')),
+                        );
                         break;
                       case 'theme':
                         Navigator.push(
@@ -263,24 +275,35 @@ class _MainShellState extends State<MainShell> {
                         break;
                     }
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'image',
-                      child: ListTile(
-                        leading: Icon(Icons.image_outlined),
-                        title: Text('更换练习图片'),
-                        contentPadding: EdgeInsets.zero,
+                  itemBuilder: (context) {
+                    return [
+                      const PopupMenuItem(
+                        value: 'image',
+                        child: ListTile(
+                          leading: Icon(Icons.image_outlined),
+                          title: Text('更换练习图片'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'theme',
-                      child: ListTile(
-                        leading: Icon(Icons.palette_outlined),
-                        title: Text('主题设置'),
-                        contentPadding: EdgeInsets.zero,
+                      if (hasCustomImage)
+                        const PopupMenuItem(
+                          value: 'reset_image',
+                          child: ListTile(
+                            leading: Icon(Icons.restore_outlined),
+                            title: Text('恢复默认图片'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'theme',
+                        child: ListTile(
+                          leading: Icon(Icons.palette_outlined),
+                          title: Text('主题设置'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
-                  ],
+                    ];
+                  },
                 ),
               ],
             )
