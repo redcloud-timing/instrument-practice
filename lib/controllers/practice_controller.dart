@@ -14,6 +14,16 @@ class PracticeController extends ChangeNotifier {
   final DatabaseService _databaseService;
 
   static const _dailyReadKey = 'daily_read';
+  static const _dailyReadFontSizeKey = 'daily_read_font_size';
+  static const _practiceNoteFontSizeKey = 'practice_note_font_size';
+  static const dailyReadMinFontSize = 14.0;
+  static const dailyReadMaxFontSize = 24.0;
+  static const dailyReadDefaultFontSize = 16.0;
+  static const dailyReadFirstLineIndent = '　　';
+  static const practiceNoteMinFontSize = 14.0;
+  static const practiceNoteMaxFontSize = 24.0;
+  static const practiceNoteDefaultFontSize = 16.0;
+  static const practiceNoteFirstLineIndent = '　　';
   static const _timerStartKey = 'active_timer_start_iso';
   static const _flowerStateKey = 'flower_state_v1';
   static const _flowerDateKey = 'flower_state_date';
@@ -33,8 +43,13 @@ class PracticeController extends ChangeNotifier {
   int get waterClicks => _waterClicks;
   int get sunClicks => _sunClicks;
   String dailyRead = '';
+  double dailyReadFontSize = dailyReadDefaultFontSize;
+  double practiceNoteFontSize = practiceNoteDefaultFontSize;
   LibraryItem? homePracticeImage;
   List<PracticeLog> logs = [];
+
+  Future<void>? _dailyReadPersisting;
+  String? _pendingDailyReadToSave;
 
   DateTime? activeTimerStart;
   int elapsedSeconds = 0;
@@ -90,9 +105,17 @@ class PracticeController extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    dailyRead =
-        await _databaseService.getSetting(_dailyReadKey) ??
-        '练习前先放松肩颈，确认气息稳定。慢练优先，音色优先，速度最后再加。';
+    dailyRead = _normalizeDailyRead(
+      await _databaseService.getSetting(_dailyReadKey) ??
+          '练习前先放松肩颈，确认气息稳定。慢练优先，音色优先，速度最后再加。',
+    );
+
+    dailyReadFontSize = _readDailyReadFontSize(
+      await _databaseService.getSetting(_dailyReadFontSizeKey),
+    );
+    practiceNoteFontSize = _readPracticeNoteFontSize(
+      await _databaseService.getSetting(_practiceNoteFontSizeKey),
+    );
 
     final timerIso = await _databaseService.getSetting(_timerStartKey);
     final parsedTimerStart = timerIso == null
@@ -123,10 +146,60 @@ class PracticeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveDailyRead(String text) async {
-    dailyRead = text.trim();
-    await _databaseService.setSetting(_dailyReadKey, dailyRead);
+  Future<void> saveDailyRead(String text) {
+    final nextText = _normalizeDailyRead(text);
+    if (dailyRead != nextText) {
+      dailyRead = nextText;
+      notifyListeners();
+    }
+
+    _pendingDailyReadToSave = nextText;
+    _dailyReadPersisting ??= _flushDailyRead();
+    return _dailyReadPersisting!;
+  }
+
+  Future<void> _flushDailyRead() async {
+    while (_pendingDailyReadToSave != null) {
+      final text = _pendingDailyReadToSave!;
+      _pendingDailyReadToSave = null;
+      await _databaseService.setSetting(_dailyReadKey, text);
+    }
+
+    _dailyReadPersisting = null;
+  }
+
+  Future<void> changeDailyReadFontSize(double delta) {
+    return setDailyReadFontSize(dailyReadFontSize + delta);
+  }
+
+  Future<void> setDailyReadFontSize(double fontSize) async {
+    final nextSize = _clampDailyReadFontSize(fontSize);
+    if ((dailyReadFontSize - nextSize).abs() < 0.01) return;
+
+    dailyReadFontSize = nextSize;
     notifyListeners();
+
+    await _databaseService.setSetting(
+      _dailyReadFontSizeKey,
+      nextSize.toStringAsFixed(0),
+    );
+  }
+
+  Future<void> changePracticeNoteFontSize(double delta) {
+    return setPracticeNoteFontSize(practiceNoteFontSize + delta);
+  }
+
+  Future<void> setPracticeNoteFontSize(double fontSize) async {
+    final nextSize = _clampPracticeNoteFontSize(fontSize);
+    if ((practiceNoteFontSize - nextSize).abs() < 0.01) return;
+
+    practiceNoteFontSize = nextSize;
+    notifyListeners();
+
+    await _databaseService.setSetting(
+      _practiceNoteFontSizeKey,
+      nextSize.toStringAsFixed(0),
+    );
   }
 
   Future<void> saveHomePracticeImage(LibraryItem item) async {
@@ -155,7 +228,7 @@ class PracticeController extends ChangeNotifier {
     await _databaseService.upsertLog(
       practiceDate: AppDateUtils.dateKey(date),
       durationSeconds: cleanSeconds,
-      note: note.trim(),
+      note: normalizePracticeNote(note),
     );
 
     await reloadLogs();
@@ -317,6 +390,59 @@ class PracticeController extends ChangeNotifier {
 
     final seconds = DateTime.now().difference(start).inSeconds;
     elapsedSeconds = seconds < 0 ? 0 : seconds;
+  }
+
+  static String _normalizeDailyRead(String text) {
+    return normalizeIndentedLines(text, dailyReadFirstLineIndent);
+  }
+
+  static double _readDailyReadFontSize(String? value) {
+    return _clampDailyReadFontSize(double.tryParse(value ?? ''));
+  }
+
+  static double _clampDailyReadFontSize(double? value) {
+    return (value ?? dailyReadDefaultFontSize)
+        .clamp(dailyReadMinFontSize, dailyReadMaxFontSize)
+        .toDouble();
+  }
+
+  static String normalizePracticeNote(String text) {
+    return normalizeIndentedLines(text, practiceNoteFirstLineIndent);
+  }
+
+  static String normalizeIndentedLines(String text, String indent) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return '';
+
+    return formatIndentedLinesForEditing(trimmed, indent);
+  }
+
+  static String formatIndentedLinesForEditing(String text, String indent) {
+    final normalizedNewLines = text
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n');
+    if (normalizedNewLines.isEmpty) return '';
+
+    return normalizedNewLines
+        .split('\n')
+        .map((line) {
+          final content = line
+              .replaceFirst(RegExp(r'^[ \t　]+'), '')
+              .trimRight();
+          if (content.isEmpty) return '';
+          return '$indent$content';
+        })
+        .join('\n');
+  }
+
+  static double _readPracticeNoteFontSize(String? value) {
+    return _clampPracticeNoteFontSize(double.tryParse(value ?? ''));
+  }
+
+  static double _clampPracticeNoteFontSize(double? value) {
+    return (value ?? practiceNoteDefaultFontSize)
+        .clamp(practiceNoteMinFontSize, practiceNoteMaxFontSize)
+        .toDouble();
   }
 
   @override

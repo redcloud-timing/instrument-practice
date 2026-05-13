@@ -11,8 +11,8 @@ import '../models/library_item.dart';
 import '../services/document_library_service.dart';
 import '../utils/app_date_utils.dart';
 import 'calendar_screen.dart';
+import 'daily_read_edit_screen.dart';
 import 'day_detail_screen.dart';
-import 'text_edit_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,23 +22,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Future<void> _editDailyRead(BuildContext context, String currentText) async {
-    final result = await Navigator.push<String>(
+  Future<void> _editDailyRead(BuildContext context) async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TextEditScreen(
-          title: '编辑每日必读',
-          initialText: currentText,
-          hintText: '写下练习前提醒、长期注意事项或练习原则',
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const DailyReadEditScreen()),
     );
-
-    if (result != null && context.mounted) {
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-      if (!context.mounted) return;
-      await context.read<PracticeController>().saveDailyRead(result);
-    }
   }
 
   Future<void> _toggleTimer(BuildContext context) async {
@@ -130,7 +118,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: _DailyReadCard(
               text: controller.dailyRead,
-              onEdit: () => _editDailyRead(context, controller.dailyRead),
+              fontSize: controller.dailyReadFontSize,
+              onEdit: () => _editDailyRead(context),
+              onDecreaseFont: () => context
+                  .read<PracticeController>()
+                  .changeDailyReadFontSize(-1),
+              onIncreaseFont: () =>
+                  context.read<PracticeController>().changeDailyReadFontSize(1),
             ),
           ),
         ],
@@ -386,13 +380,25 @@ class _PracticeImageRevealState extends State<_PracticeImageReveal> {
 }
 
 class _DailyReadCard extends StatelessWidget {
-  const _DailyReadCard({required this.text, required this.onEdit});
+  const _DailyReadCard({
+    required this.text,
+    required this.fontSize,
+    required this.onEdit,
+    required this.onDecreaseFont,
+    required this.onIncreaseFont,
+  });
 
   final String text;
+  final double fontSize;
   final VoidCallback onEdit;
+  final VoidCallback onDecreaseFont;
+  final VoidCallback onIncreaseFont;
 
   @override
   Widget build(BuildContext context) {
+    final canDecrease = fontSize > PracticeController.dailyReadMinFontSize;
+    final canIncrease = fontSize < PracticeController.dailyReadMaxFontSize;
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
@@ -406,9 +412,28 @@ class _DailyReadCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text('每日必读', style: Theme.of(context).textTheme.labelLarge),
                 const Spacer(),
-                GestureDetector(
-                  onTap: onEdit,
-                  child: const Icon(Icons.edit_outlined, size: 16),
+                _DailyReadHeaderButton(
+                  tooltip: '缩小字体',
+                  icon: Icons.remove_circle_outline,
+                  onPressed: canDecrease ? onDecreaseFont : null,
+                ),
+                SizedBox(
+                  width: 24,
+                  child: Text(
+                    fontSize.round().toString(),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                _DailyReadHeaderButton(
+                  tooltip: '放大字体',
+                  icon: Icons.add_circle_outline,
+                  onPressed: canIncrease ? onIncreaseFont : null,
+                ),
+                _DailyReadHeaderButton(
+                  tooltip: '编辑每日必读',
+                  icon: Icons.edit_outlined,
+                  onPressed: onEdit,
                 ),
               ],
             ),
@@ -417,12 +442,43 @@ class _DailyReadCard extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Text(
                   text.isEmpty ? '点击右上角编辑每日必读。' : text,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: fontSize,
+                    height: 1.55,
+                  ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DailyReadHeaderButton extends StatelessWidget {
+  const _DailyReadHeaderButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 17),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        visualDensity: VisualDensity.compact,
       ),
     );
   }
