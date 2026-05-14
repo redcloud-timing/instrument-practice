@@ -106,8 +106,10 @@ class TimeAxis extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (cursorTimestamp == null) return const SizedBox.shrink();
+
     return SizedBox(
-      height: 28,
+      height: 24,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: CustomPaint(
@@ -154,7 +156,7 @@ class TimeAxisPainter extends CustomPainter {
 
     canvas.drawLine(
       Offset(noteMargin, 0),
-      Offset(w, h - 1),
+      Offset(w, 0),
       Paint()
         ..color = colors.separator
         ..strokeWidth = 0.5,
@@ -257,8 +259,6 @@ class PitchCanvasPainter extends CustomPainter {
     required this.maxMidi,
     required this.referenceA4Hz,
     required this.highlightedMidi,
-    this.overlayHistory = const [],
-    this.overlayColor,
   });
 
   final List<PitchReading> history;
@@ -277,8 +277,6 @@ class PitchCanvasPainter extends CustomPainter {
   final double maxMidi;
   final double referenceA4Hz;
   final int? highlightedMidi;
-  final List<PitchReading> overlayHistory;
-  final Color? overlayColor;
 
   double get _effMinMidi => minMidi + verticalOffsetSemitones;
   double get _effMaxMidi => maxMidi + verticalOffsetSemitones;
@@ -302,9 +300,6 @@ class PitchCanvasPainter extends CustomPainter {
 
     _drawTimeGrid(canvas, w, h, cursor);
     _drawGrid(canvas, w, h);
-    if (overlayHistory.isNotEmpty && !isRunning) {
-      _drawOverlayDots(canvas, w, h, cursor);
-    }
     _drawPitchTrace(canvas, w, h, cursor);
     _drawScaleLabel(canvas, w);
   }
@@ -552,25 +547,6 @@ class PitchCanvasPainter extends CustomPainter {
     return h - normalized * h;
   }
 
-  void _drawOverlayDots(Canvas canvas, double w, double h, int cursor) {
-    final noteMargin = _noteMargin;
-    final plotWidth = w - noteMargin;
-    final leftEdge = cursor - visibleDurationMs;
-    final dotColor = (overlayColor ?? colors.dotInTune).withValues(alpha: 0.25);
-
-    for (final reading in overlayHistory) {
-      if (!reading.hasPitch) continue;
-      if (reading.timestampMillis < leftEdge) continue;
-      if (reading.timestampMillis > cursor) continue;
-
-      final age = (cursor - reading.timestampMillis) / visibleDurationMs;
-      final x = noteMargin + plotWidth * (1 - age);
-      final midi = _midiValue(reading.frequency);
-      final y = _yForMidi(midi, h);
-      canvas.drawCircle(Offset(x, y), 1.3, Paint()..color = dotColor);
-    }
-  }
-
   @override
   bool shouldRepaint(covariant PitchCanvasPainter oldDelegate) {
     return oldDelegate.history != history ||
@@ -583,7 +559,6 @@ class PitchCanvasPainter extends CustomPainter {
         oldDelegate.hasLoadedRecording != hasLoadedRecording ||
         oldDelegate.isPlaying != isPlaying ||
         oldDelegate.playbackPositionMs != playbackPositionMs ||
-        oldDelegate.overlayHistory != overlayHistory ||
         oldDelegate.minMidi != minMidi ||
         oldDelegate.maxMidi != maxMidi ||
         oldDelegate.referenceA4Hz != referenceA4Hz ||

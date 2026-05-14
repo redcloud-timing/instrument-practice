@@ -201,19 +201,19 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
     final cursorTs = baseCursorMs != null
         ? baseCursorMs - _scrollOffsetMs.toInt()
         : null;
-    final topBarReading = _topBarReading(controller, history, cursorTs);
-    final hasTopBarPitch = topBarReading?.hasPitch ?? false;
+    final currentPitchReading = _currentPitchReading(
+      controller,
+      history,
+      cursorTs,
+    );
+    final hasCurrentPitch = currentPitchReading?.hasPitch ?? false;
 
     int? recordingStartForAxis = _recordingStartMs;
     if (hasLoadedRecording && history.isNotEmpty) {
       recordingStartForAxis = history.first.timestampMillis;
     }
-    final cursorElapsedText = _formatCursorElapsed(
-      cursorTs,
-      recordingStartForAxis,
-    );
-    final highlightedMidi = hasTopBarPitch
-        ? topBarReading!.midiNumberFor(controller.referenceA4Hz)
+    final highlightedMidi = hasCurrentPitch
+        ? currentPitchReading!.midiNumberFor(controller.referenceA4Hz)
         : null;
 
     final hasLatestRecording = controller.latestRecordingPath != null;
@@ -225,27 +225,6 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
       bottom: false,
       child: Column(
         children: [
-          _TopBar(
-            noteLabel: hasTopBarPitch
-                ? topBarReading!.noteLabelFor(controller.referenceA4Hz)
-                : '--',
-            frequency: hasTopBarPitch ? topBarReading!.frequency : 0,
-            hasPitch: hasTopBarPitch,
-            cursorElapsedText: cursorElapsedText,
-            isRunning: controller.isRunning,
-            hasLoadedRecording: hasLoadedRecording,
-            recordingDuration: hasLoadedRecording && history.isNotEmpty
-                ? _formatDuration(
-                    ((history.last.timestampMillis -
-                                history.first.timestampMillis) /
-                            1000)
-                        .round(),
-                  )
-                : null,
-            visibleDurationMs: visibleDurationMs,
-            midiSpan: midiSpan,
-            onSettingsTap: () => _openSettings(context),
-          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -371,7 +350,6 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
                                 maxMidi: effectiveMaxMidi,
                                 referenceA4Hz: controller.referenceA4Hz,
                                 highlightedMidi: highlightedMidi,
-                                overlayHistory: controller.overlayHistory,
                               ),
                               size: Size.infinite,
                             ),
@@ -396,7 +374,7 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
                           if (_verticalOffsetSemitones.abs() > 0.5)
                             Positioned(
                               right: 12,
-                              top: 12,
+                              top: 88,
                               child: _FloatingButton(
                                 icon: Icons.vertical_align_center,
                                 label: '居中',
@@ -405,16 +383,6 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
                                     _verticalOffsetSemitones = 0;
                                   });
                                 },
-                              ),
-                            ),
-                          if (controller.overlayHistory.isNotEmpty &&
-                              !controller.isRunning)
-                            Positioned(
-                              left: 12,
-                              top: 12,
-                              child: _OverlayChip(
-                                name: controller.overlayRecordingName ?? '录音',
-                                onClear: () => controller.clearOverlay(),
                               ),
                             ),
                           if (hasLoadedRecording && history.isEmpty)
@@ -441,6 +409,16 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
                                 colors: canvasColors,
                               ),
                             ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            child: _PitchRulerOverlay(
+                              reading: currentPitchReading,
+                              referenceA4Hz: controller.referenceA4Hz,
+                              onSettingsTap: () => _openSettings(context),
+                            ),
+                          ),
                         ],
                       );
                     },
@@ -606,7 +584,7 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
     return math.pow(rawScale, damping).toDouble();
   }
 
-  PitchReading? _topBarReading(
+  PitchReading? _currentPitchReading(
     PitchTraceController controller,
     List<PitchReading> history,
     int? cursorTs,
@@ -622,24 +600,6 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
       if (reading.timestampMillis <= targetTs) return reading;
     }
     return history.first;
-  }
-
-  String _formatDuration(int seconds) {
-    final mins = seconds ~/ 60;
-    final secs = seconds % 60;
-    if (mins > 0) return '$mins 分 $secs 秒';
-    return '$secs 秒';
-  }
-
-  String? _formatCursorElapsed(int? cursorTs, int? recordingStartMs) {
-    if (cursorTs == null || recordingStartMs == null) return null;
-    final elapsedMs = math.max(0, cursorTs - recordingStartMs);
-    final minutes = elapsedMs ~/ 60000;
-    final seconds = (elapsedMs % 60000) / 1000;
-    if (minutes > 0) {
-      return '$minutes:${seconds.toStringAsFixed(1).padLeft(4, '0')}';
-    }
-    return '${seconds.toStringAsFixed(1)}s';
   }
 
   void _openSettings(BuildContext context) {
@@ -708,120 +668,253 @@ class _FloatingButton extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({
-    required this.noteLabel,
-    required this.frequency,
-    required this.hasPitch,
-    required this.cursorElapsedText,
-    required this.isRunning,
-    required this.hasLoadedRecording,
-    required this.recordingDuration,
-    required this.visibleDurationMs,
-    required this.midiSpan,
+class _PitchRulerOverlay extends StatelessWidget {
+  const _PitchRulerOverlay({
+    required this.reading,
+    required this.referenceA4Hz,
     required this.onSettingsTap,
   });
-  final String noteLabel;
-  final double frequency;
-  final bool hasPitch;
-  final String? cursorElapsedText;
-  final bool isRunning;
-  final bool hasLoadedRecording;
-  final String? recordingDuration;
-  final double visibleDurationMs;
-  final double midiSpan;
+
+  final PitchReading? reading;
+  final double referenceA4Hz;
   final VoidCallback onSettingsTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final freqText = hasPitch ? '${frequency.toStringAsFixed(1)} Hz' : '--';
-    final timeText = cursorElapsedText ?? '--';
-    final windowText =
-        '${(visibleDurationMs / 1000).round()}秒 · ${midiSpan.round()}半音';
+    final hasPitch = reading?.hasPitch ?? false;
+    final noteText = hasPitch ? reading!.noteLabelFor(referenceA4Hz) : '--';
+    final freqText = hasPitch
+        ? '${reading!.frequency.toStringAsFixed(1)}Hz'
+        : '--Hz';
 
-    final statusColor = !isRunning && !hasLoadedRecording
-        ? colorScheme.outline
-        : !hasPitch
-        ? Colors.grey
-        : colorScheme.primary;
-
-    final controller = context.watch<PitchTraceController>();
-    String subtitle;
-    if (isRunning && controller.isRecordingPaused) {
-      subtitle = '录音已暂停';
-    } else if (isRunning) {
-      subtitle = hasPitch ? '$timeText · $freqText' : '等待声音输入...';
-    } else if (hasLoadedRecording) {
-      subtitle = hasPitch
-          ? '$timeText · $freqText'
-          : recordingDuration != null
-          ? '录音时长: $recordingDuration'
-          : '查看录音音高数据';
-    } else {
-      subtitle = '点击下方按钮开始记录';
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      noteLabel,
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: statusColor,
-                          ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (hasPitch)
-                      Text(
-                        freqText,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w500,
-                            ),
+    return SizedBox(
+      height: 82,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colorScheme.surface.withValues(alpha: 0.90),
+              colorScheme.surface.withValues(alpha: 0.66),
+              colorScheme.surface.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 52,
+              right: 52,
+              top: 4,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Flexible(
+                    child: Text(
+                      noteText,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: hasPitch
+                            ? colorScheme.primary
+                            : colorScheme.outline,
                       ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '窗口 $windowText',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.45),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      freqText,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: hasPitch
+                            ? colorScheme.onSurface
+                            : colorScheme.outline,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 6,
+              top: 0,
+              child: IconButton(
+                onPressed: onSettingsTap,
+                icon: const Icon(Icons.settings_outlined, size: 22),
+                tooltip: '音高轨迹设置',
+                style: IconButton.styleFrom(
+                  backgroundColor: colorScheme.surface.withValues(alpha: 0.74),
+                  minimumSize: const Size(40, 40),
+                  padding: EdgeInsets.zero,
                 ),
-              ],
+              ),
             ),
-          ),
-          IconButton(
-            onPressed: onSettingsTap,
-            icon: const Icon(Icons.settings_outlined, size: 22),
-            tooltip: '音高轨迹设置',
-            style: IconButton.styleFrom(
-              minimumSize: const Size(40, 40),
-              padding: EdgeInsets.zero,
+            Positioned(
+              left: 10,
+              right: 10,
+              top: 32,
+              height: 46,
+              child: CustomPaint(
+                painter: _PitchRulerPainter(
+                  reading: reading,
+                  referenceA4Hz: referenceA4Hz,
+                  colorScheme: colorScheme,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _PitchRulerPainter extends CustomPainter {
+  const _PitchRulerPainter({
+    required this.reading,
+    required this.referenceA4Hz,
+    required this.colorScheme,
+  });
+
+  final PitchReading? reading;
+  final double referenceA4Hz;
+  final ColorScheme colorScheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baselineY = size.height * 0.58;
+    final centerX = size.width / 2;
+    final baselinePaint = Paint()
+      ..color = colorScheme.outlineVariant.withValues(alpha: 0.72)
+      ..strokeWidth = 1.1;
+    canvas.drawLine(
+      Offset(0, baselineY),
+      Offset(size.width, baselineY),
+      baselinePaint,
+    );
+
+    final current = reading;
+    if (current?.hasPitch ?? false) {
+      _drawTicks(canvas, size, baselineY, current!);
+    }
+
+    _drawCenterMarker(canvas, baselineY, centerX);
+  }
+
+  void _drawTicks(
+    Canvas canvas,
+    Size size,
+    double baselineY,
+    PitchReading current,
+  ) {
+    const visibleSemitones = 2.8;
+    final centerX = size.width / 2;
+    final pixelsPerSemitone = size.width / visibleSemitones;
+    final currentMidi = _midiValue(current.frequency);
+    final nearestMidi = current.midiNumberFor(referenceA4Hz);
+    final firstStep = ((currentMidi - visibleSemitones / 2) * 10).floor();
+    final lastStep = ((currentMidi + visibleSemitones / 2) * 10).ceil();
+
+    for (var step = firstStep; step <= lastStep; step++) {
+      final tickMidi = step / 10.0;
+      final x = centerX + (tickMidi - currentMidi) * pixelsPerSemitone;
+      if (x < -20 || x > size.width + 20) continue;
+
+      final isSemitone = step % 10 == 0;
+      final isMiddleTick = step % 5 == 0;
+      final tickHeight = isSemitone
+          ? 15.0
+          : isMiddleTick
+          ? 10.0
+          : 6.0;
+      final midi = step ~/ 10;
+      final isNearest = isSemitone && midi == nearestMidi;
+      final tickPaint = Paint()
+        ..color = isNearest
+            ? colorScheme.primary
+            : isSemitone
+            ? colorScheme.onSurfaceVariant.withValues(alpha: 0.82)
+            : colorScheme.outlineVariant.withValues(alpha: 0.72)
+        ..strokeWidth = isNearest ? 1.8 : (isSemitone ? 1.2 : 0.7);
+
+      canvas.drawLine(
+        Offset(x, baselineY - tickHeight),
+        Offset(x, baselineY + tickHeight * 0.42),
+        tickPaint,
+      );
+
+      if (isSemitone) {
+        _drawNoteLabel(canvas, size, x, midi, isNearest);
+      }
+    }
+  }
+
+  void _drawNoteLabel(
+    Canvas canvas,
+    Size size,
+    double x,
+    int midi,
+    bool isNearest,
+  ) {
+    final label = '${noteNames[midi % 12]}${midi ~/ 12 - 1}';
+    final tp = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: isNearest
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant.withValues(alpha: 0.82),
+          fontSize: isNearest ? 11 : 10,
+          fontWeight: isNearest ? FontWeight.w800 : FontWeight.w600,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout();
+    if (x < tp.width / 2 + 2 || x > size.width - tp.width / 2 - 2) {
+      return;
+    }
+    tp.paint(canvas, Offset(x - tp.width / 2, 0));
+  }
+
+  void _drawCenterMarker(Canvas canvas, double baselineY, double centerX) {
+    final markerPaint = Paint()
+      ..color = colorScheme.primary
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(centerX, baselineY - 13),
+      Offset(centerX, baselineY + 13),
+      markerPaint,
+    );
+
+    final arrowTipY = baselineY - 16;
+    final triangle = Path()
+      ..moveTo(centerX, arrowTipY)
+      ..lineTo(centerX - 4, arrowTipY - 5)
+      ..lineTo(centerX + 4, arrowTipY - 5)
+      ..close();
+    canvas.drawPath(triangle, Paint()..color = colorScheme.primary);
+  }
+
+  double _midiValue(double frequency) {
+    final cleanReference = referenceA4Hz > 0
+        ? referenceA4Hz
+        : defaultReferenceA4Hz;
+    return 69 + 12 * math.log(frequency / cleanReference) / math.ln2;
+  }
+
+  @override
+  bool shouldRepaint(covariant _PitchRulerPainter oldDelegate) {
+    return oldDelegate.reading != reading ||
+        oldDelegate.referenceA4Hz != referenceA4Hz ||
+        oldDelegate.colorScheme != colorScheme;
   }
 }
 
@@ -956,51 +1049,6 @@ class _MicButtonState extends State<_MicButton>
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _OverlayChip extends StatelessWidget {
-  const _OverlayChip({required this.name, required this.onClear});
-
-  final String name;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.compare_arrows,
-            size: 14,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '对比: $name',
-            style: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 2),
-          GestureDetector(
-            onTap: onClear,
-            child: Icon(
-              Icons.close,
-              size: 14,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ),
-        ],
       ),
     );
   }

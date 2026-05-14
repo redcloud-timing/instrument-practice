@@ -117,18 +117,6 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
                       padding: EdgeInsets.zero,
                     ),
                   ),
-                  IconButton(
-                    tooltip: '叠加对比',
-                    onPressed: () {
-                      controller.loadOverlay(rec.path);
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.compare_arrows, size: 20),
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size(36, 36),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
                   PopupMenuButton<_RecordingAction>(
                     tooltip: '更多操作',
                     icon: const Icon(Icons.more_vert, size: 20),

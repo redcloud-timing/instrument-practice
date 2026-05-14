@@ -95,33 +95,10 @@ class PitchTraceController extends ChangeNotifier {
       List.unmodifiable(_loadedRecordingHistory);
   String? _loadedRecordingPath;
 
-  final List<PitchReading> _overlayHistory = [];
-  List<PitchReading> get overlayHistory => List.unmodifiable(_overlayHistory);
-  String? overlayRecordingName;
-  String? _overlayRecordingPath;
-
   final Map<String, _RecordingMetadata> _recordingMetadata = {};
 
   Future<void> init() async {
     await Future.wait([_loadSettings(), _loadRecordingMetadata()]);
-    notifyListeners();
-  }
-
-  void loadOverlay(String path) {
-    _overlayHistory.clear();
-    _overlayHistory.addAll(_loadPitchHistory(path));
-    _overlayRecordingPath = path;
-    overlayRecordingName = recordingDisplayName(
-      path,
-      fallback: path.split('/').last.replaceAll('.wav', ''),
-    );
-    notifyListeners();
-  }
-
-  void clearOverlay() {
-    _overlayHistory.clear();
-    overlayRecordingName = null;
-    _overlayRecordingPath = null;
     notifyListeners();
   }
 
@@ -249,9 +226,6 @@ class PitchTraceController extends ChangeNotifier {
     _loadedRecordingHistory.clear();
     _loadedRecordingPath = null;
     latestRecordingPath = null;
-    _overlayHistory.clear();
-    overlayRecordingName = null;
-    _overlayRecordingPath = null;
     isRecordingPaused = false;
     _pauseStartMs = 0;
     _totalPauseOffsetMs = 0;
@@ -423,9 +397,6 @@ class PitchTraceController extends ChangeNotifier {
     _recordingMetadata[path] = existing.copyWith(title: cleanTitle);
     _refreshRecordingMetadata(path);
     if (playingPath == path) playingName = cleanTitle;
-    if (_overlayRecordingPath == path) {
-      overlayRecordingName = recordingDisplayName(path, fallback: cleanTitle);
-    }
     await _saveRecordingMetadata();
     notifyListeners();
   }
@@ -521,11 +492,6 @@ class PitchTraceController extends ChangeNotifier {
       if (_loadedRecordingPath == path) {
         _loadedRecordingHistory.clear();
         _loadedRecordingPath = null;
-      }
-      if (_overlayRecordingPath == path) {
-        _overlayHistory.clear();
-        overlayRecordingName = null;
-        _overlayRecordingPath = null;
       }
       if (latestRecordingPath == path) latestRecordingPath = null;
       if (playingPath == path) {

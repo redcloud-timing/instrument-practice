@@ -223,6 +223,14 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
       controller.minFrequency,
       controller.maxFrequency,
     );
+    final lowNote = _noteLabelForFrequency(
+      controller.minFrequency,
+      controller.referenceA4Hz,
+    );
+    final highNote = _noteLabelForFrequency(
+      controller.maxFrequency,
+      controller.referenceA4Hz,
+    );
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -245,15 +253,16 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                '${controller.minFrequency.round()} Hz - '
-                '${controller.maxFrequency.round()} Hz',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  '$lowNote - $highNote',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const Spacer(),
               TextButton(
                 onPressed: controller.resetFrequencyRange,
                 child: const Text('恢复默认'),
@@ -270,8 +279,8 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
                         10)
                     .round(),
             labels: RangeLabels(
-              '${values.start.round()} Hz',
-              '${values.end.round()} Hz',
+              _noteLabelForFrequency(values.start, controller.referenceA4Hz),
+              _noteLabelForFrequency(values.end, controller.referenceA4Hz),
             ),
             onChanged: (newValues) {
               controller.setFrequencyRange(newValues.start, newValues.end);
@@ -289,6 +298,15 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
         ],
       ),
     );
+  }
+
+  String _noteLabelForFrequency(double frequency, double referenceA4Hz) {
+    return PitchReading(
+      frequency: frequency,
+      amplitude: 0,
+      clarity: 1,
+      timestampMillis: 0,
+    ).noteLabelFor(referenceA4Hz);
   }
 
   Widget _buildScaleSelector(
