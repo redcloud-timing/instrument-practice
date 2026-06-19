@@ -1,3 +1,6 @@
+/// 资料库条目
+///
+/// 表示一个导入的 PDF 乐谱或图片，包含元数据和用户标注。
 class LibraryItem {
   const LibraryItem({
     required this.uri,

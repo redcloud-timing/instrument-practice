@@ -1,3 +1,6 @@
+/// 音高轨迹录音记录
+///
+/// 表示一次已完成的音高轨迹录音，包含文件路径、时长和用户标注。
 class PitchTraceRecording {
   const PitchTraceRecording({
     required this.path,

@@ -28,6 +28,7 @@ class _DayDetailScreenState extends State<DayDetailScreen> {
   bool _saveAgain = false;
   int? _lastSavedDurationSeconds;
   String? _lastSavedNote;
+  String _lastEditingNote = '';
 
   static const _autoSaveDelay = Duration(milliseconds: 250);
 
@@ -54,6 +55,7 @@ class _DayDetailScreenState extends State<DayDetailScreen> {
     _noteController.selection = TextSelection.collapsed(
       offset: _noteController.text.length,
     );
+    _lastEditingNote = _noteController.text;
     _lastSavedDurationSeconds = minutes * 60;
     _lastSavedNote = log?.note ?? '';
     _hydrating = false;
@@ -83,8 +85,42 @@ class _DayDetailScreenState extends State<DayDetailScreen> {
   void _handleNoteChanged() {
     if (_hydrating || _formattingNote) return;
 
-    _formatNoteText();
+    final insertedLineIndent = _insertNoteIndentAfterNewLine();
+    if (!insertedLineIndent) {
+      _formatNoteText();
+    }
+    _lastEditingNote = _noteController.text;
     _scheduleAutoSave();
+  }
+
+  bool _insertNoteIndentAfterNewLine() {
+    final text = _noteController.text;
+    final cursorOffset = _noteController.selection.extentOffset;
+    if (!_isSingleNoteNewLineInsertion(text, cursorOffset)) return false;
+
+    const indent = PracticeController.practiceNoteFirstLineIndent;
+    final nextText = text.replaceRange(cursorOffset, cursorOffset, indent);
+
+    _formattingNote = true;
+    _noteController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: cursorOffset + indent.length),
+      composing: TextRange.empty,
+    );
+    _formattingNote = false;
+    return true;
+  }
+
+  bool _isSingleNoteNewLineInsertion(String text, int cursorOffset) {
+    if (cursorOffset <= 0 || cursorOffset > text.length) return false;
+    if (text.codeUnitAt(cursorOffset - 1) != 10) return false;
+    if (text.length != _lastEditingNote.length + 1) return false;
+
+    return _newLineCount(text) == _newLineCount(_lastEditingNote) + 1;
+  }
+
+  int _newLineCount(String text) {
+    return '\n'.allMatches(text).length;
   }
 
   void _formatNoteText() {

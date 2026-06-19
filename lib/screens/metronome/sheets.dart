@@ -7,9 +7,7 @@ import '../../controllers/metronome_controller.dart';
 import '../../models/metronome_preset.dart';
 
 class BpmKeypadSheet extends StatefulWidget {
-  const BpmKeypadSheet({super.key, required this.initialBpm});
-
-  final int initialBpm;
+  const BpmKeypadSheet({super.key});
 
   @override
   State<BpmKeypadSheet> createState() => _BpmKeypadSheetState();
@@ -21,7 +19,7 @@ class _BpmKeypadSheetState extends State<BpmKeypadSheet> {
   @override
   void initState() {
     super.initState();
-    _digits = '${widget.initialBpm}';
+    _digits = '';
   }
 
   @override
@@ -42,7 +40,7 @@ class _BpmKeypadSheetState extends State<BpmKeypadSheet> {
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
               child: Text(
-                _digits.isEmpty ? '0' : _digits,
+                _digits.isEmpty ? '--' : _digits,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),

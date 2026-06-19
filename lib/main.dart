@@ -8,11 +8,12 @@ import 'controllers/pitch_trace_controller.dart';
 import 'controllers/metronome_controller.dart';
 import 'controllers/practice_controller.dart';
 import 'controllers/library_controller.dart';
+import 'routes/app_router.dart';
 import 'screens/home_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/metronome_screen.dart';
-import 'screens/theme_settings_screen.dart';
 import 'screens/pitch_trace_screen.dart';
+import 'screens/theme_settings_screen.dart';
 import 'services/database_service.dart';
 import 'services/document_library_service.dart';
 import 'services/metronome_sound_service.dart';
@@ -34,7 +35,8 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (_) =>
               MetronomeController(databaseService, MetronomeSoundService())
-                ..init(),
+                ..init()
+                ..attachLifecycleObserver(),
         ),
         ChangeNotifierProvider(
           create: (_) =>
@@ -44,7 +46,8 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (_) =>
               PitchTraceController(databaseService, PitchTraceService())
-                ..init(),
+                ..init()
+                ..attachLifecycleObserver(),
         ),
         ChangeNotifierProvider(
           create: (_) => ThemeController(databaseService)..init(),
@@ -75,6 +78,7 @@ class FlutePracticeApp extends StatelessWidget {
       ],
       theme: _buildAppTheme(themeController, Brightness.light),
       darkTheme: _buildAppTheme(themeController, Brightness.dark),
+      onGenerateRoute: AppRouter.onGenerateRoute,
       home: const MainShell(),
     );
   }

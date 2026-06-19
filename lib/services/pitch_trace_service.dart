@@ -11,6 +11,10 @@ class PitchTraceException implements Exception {
   final String message;
 }
 
+/// 音高轨迹原生服务
+///
+/// 通过 MethodChannel 与原生平台通信，提供实时音高检测、录音和回放能力。
+/// 音高数据通过 EventChannel 以流的形式推送到 Dart 层。
 class PitchTraceService {
   static const MethodChannel _methodChannel = MethodChannel(
     'flute_practice/pitch_trace',

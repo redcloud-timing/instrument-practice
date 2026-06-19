@@ -17,6 +17,7 @@ class TextEditScreen extends StatefulWidget {
     this.initialFontSize,
     this.onFontSizeChanged,
     this.linePrefix,
+    this.selectAllOnOpen = false,
   });
 
   final String title;
@@ -31,6 +32,7 @@ class TextEditScreen extends StatefulWidget {
   final double? initialFontSize;
   final FutureOr<void> Function(double fontSize)? onFontSizeChanged;
   final String? linePrefix;
+  final bool selectAllOnOpen;
 
   @override
   State<TextEditScreen> createState() => _TextEditScreenState();
@@ -47,6 +49,13 @@ class _TextEditScreenState extends State<TextEditScreen> {
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.initialText);
+    if (widget.selectAllOnOpen) {
+      _selectAllText();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _selectAllText();
+      });
+    }
     _fontSize = widget.initialFontSize ?? 16;
   }
 
@@ -64,6 +73,13 @@ class _TextEditScreenState extends State<TextEditScreen> {
     if (!mounted) return;
 
     Navigator.pop(context, text);
+  }
+
+  void _selectAllText() {
+    _textController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _textController.text.length,
+    );
   }
 
   void _handleTextChanged(String text) {

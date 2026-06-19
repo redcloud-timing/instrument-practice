@@ -8,6 +8,16 @@ import '../models/practice_log.dart';
 import '../services/database_service.dart';
 import '../utils/app_date_utils.dart';
 
+/// 练习记录管理控制器
+///
+/// 管理练习计时器、每日日志、花朵成长状态和每日阅读。
+/// 通过 [DatabaseService] 持久化数据。
+///
+/// 主要功能：
+/// - 练习计时器启停与自动保存
+/// - 每日练习日志查询与编辑
+/// - 花朵成长状态机（浇水/听音乐触发成长）
+/// - 每日阅读内容管理
 class PracticeController extends ChangeNotifier {
   PracticeController(this._databaseService);
 

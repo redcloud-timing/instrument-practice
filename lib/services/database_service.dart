@@ -3,6 +3,10 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/practice_log.dart';
 
+/// 数据库服务
+///
+/// 封装 SQLite 数据库操作，提供练习日志和应用设置的持久化。
+/// 使用 sqflite 插件，数据库文件名为 [AppConstants.databaseName]。
 class DatabaseService {
   Database? _database;
 

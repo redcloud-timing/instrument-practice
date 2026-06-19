@@ -6,6 +6,17 @@ import '../models/library_item.dart';
 import '../services/database_service.dart';
 import '../services/document_library_service.dart';
 
+/// 乐谱资料库控制器
+///
+/// 管理 PDF 乐谱和图片的导入、收藏、搜索和删除。
+/// 通过 [DatabaseService] 持久化元数据，通过 [DocumentLibraryService] 访问原生文件能力。
+///
+/// 主要功能：
+/// - 从设备导入 PDF/图片
+/// - 收藏管理
+/// - 搜索与过滤
+/// - 笔记与书签
+/// - 容量限制（最大 60 条）
 class LibraryController extends ChangeNotifier {
   LibraryController(this._databaseService, this._documentService);
 

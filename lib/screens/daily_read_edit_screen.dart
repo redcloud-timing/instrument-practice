@@ -23,6 +23,7 @@ class _DailyReadEditScreenState extends State<DailyReadEditScreen> {
   bool _saving = false;
   bool _saveAgain = false;
   String? _lastSavedText;
+  String _lastEditingText = '';
 
   static const _autoSaveDelay = Duration(milliseconds: 250);
 
@@ -43,6 +44,7 @@ class _DailyReadEditScreenState extends State<DailyReadEditScreen> {
     _hydrating = true;
     _textController.text = text;
     _textController.selection = TextSelection.collapsed(offset: text.length);
+    _lastEditingText = text;
     _lastSavedText = PracticeController.normalizeIndentedLines(
       text,
       PracticeController.dailyReadFirstLineIndent,
@@ -64,8 +66,42 @@ class _DailyReadEditScreenState extends State<DailyReadEditScreen> {
   void _handleTextChanged() {
     if (_hydrating || _formattingText) return;
 
-    _formatText();
+    final insertedLineIndent = _insertLineIndentAfterNewLine();
+    if (!insertedLineIndent) {
+      _formatText();
+    }
+    _lastEditingText = _textController.text;
     _scheduleAutoSave();
+  }
+
+  bool _insertLineIndentAfterNewLine() {
+    final text = _textController.text;
+    final cursorOffset = _textController.selection.extentOffset;
+    if (!_isSingleNewLineInsertion(text, cursorOffset)) return false;
+
+    const indent = PracticeController.dailyReadFirstLineIndent;
+    final nextText = text.replaceRange(cursorOffset, cursorOffset, indent);
+
+    _formattingText = true;
+    _textController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: cursorOffset + indent.length),
+      composing: TextRange.empty,
+    );
+    _formattingText = false;
+    return true;
+  }
+
+  bool _isSingleNewLineInsertion(String text, int cursorOffset) {
+    if (cursorOffset <= 0 || cursorOffset > text.length) return false;
+    if (text.codeUnitAt(cursorOffset - 1) != 10) return false;
+    if (text.length != _lastEditingText.length + 1) return false;
+
+    return _newLineCount(text) == _newLineCount(_lastEditingText) + 1;
+  }
+
+  int _newLineCount(String text) {
+    return '\n'.allMatches(text).length;
   }
 
   void _scheduleAutoSave() {
@@ -189,9 +225,9 @@ class _DailyReadEditScreenState extends State<DailyReadEditScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: const _DailyReadHeader(),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: _DailyReadHeader(),
             ),
             Expanded(
               child: Container(

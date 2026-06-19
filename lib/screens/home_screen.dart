@@ -776,7 +776,7 @@ class _PracticeFlowerPainter extends CustomPainter {
   ) {
     final unit = _u(scene);
     final stage = growthStage.clamp(0, 5).toInt();
-    final waterY = 78.0;
+    const waterY = 78.0;
 
     canvas.drawOval(
       Rect.fromCenter(
@@ -1304,12 +1304,12 @@ class _PracticeFlowerPainter extends CustomPainter {
     final unit = _u(scene);
     final fade = (1.0 - musicProgress).clamp(0.0, 1.0);
     final notes = <_VectorNoteSpec>[
-      _VectorNoteSpec(15, 28, 0.00, 1.00, 1, 0),
-      _VectorNoteSpec(26, 17, 0.10, 0.82, 0, 1),
-      _VectorNoteSpec(70, 19, 0.04, 0.86, 2, 2),
-      _VectorNoteSpec(82, 31, 0.14, 0.78, 1, 3),
-      _VectorNoteSpec(30, 39, 0.20, 0.72, 3, 4),
-      _VectorNoteSpec(76, 45, 0.28, 0.66, 0, 5),
+      const _VectorNoteSpec(15, 28, 0.00, 1.00, 1, 0),
+      const _VectorNoteSpec(26, 17, 0.10, 0.82, 0, 1),
+      const _VectorNoteSpec(70, 19, 0.04, 0.86, 2, 2),
+      const _VectorNoteSpec(82, 31, 0.14, 0.78, 1, 3),
+      const _VectorNoteSpec(30, 39, 0.20, 0.72, 3, 4),
+      const _VectorNoteSpec(76, 45, 0.28, 0.66, 0, 5),
     ];
 
     for (final note in notes) {
@@ -2082,7 +2082,7 @@ class _PracticeFlowerPainter extends CustomPainter {
     canvas.drawCircle(Offset(sx, sy), r * 0.6, lightPaint);
 
     // Rays (8 directions)
-    final rayCount = 8;
+    const rayCount = 8;
     for (var i = 0; i < rayCount; i++) {
       final angle = (i / rayCount) * 3.14159 * 2;
       final rayLen = r * 0.8 * progress;

@@ -62,7 +62,7 @@ class CometPainter extends CustomPainter {
       path.moveTo(center.dx, center.dy - radius);
       path.lineTo(center.dx, center.dy + radius);
     } else if (beatCount == 2) {
-      final m = 6.0;
+      const m = 6.0;
       path.moveTo(m, m);
       path.lineTo(m, size.height - m);
       path.lineTo(size.width - m, size.height - m);
@@ -146,7 +146,7 @@ class BeatShapePainter extends CustomPainter {
         paint,
       );
     } else if (beatCount == 2) {
-      final margin = 3.0;
+      const margin = 3.0;
       canvas.drawLine(
         Offset(margin, size.height - margin),
         Offset(margin, margin),

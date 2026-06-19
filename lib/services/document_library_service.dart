@@ -8,6 +8,9 @@ class DocumentLibraryException implements Exception {
   final String message;
 }
 
+/// 文档资料库原生服务
+///
+/// 通过 MethodChannel 调用原生文件选择器，支持 PDF 和图片的导入、渲染和删除。
 class DocumentLibraryService {
   static const MethodChannel _channel = MethodChannel(
     'flute_practice/documents',
@@ -69,34 +72,20 @@ class DocumentLibraryService {
     }
   }
 
-  Future<int> pdfPageCount(LibraryItem item) async {
+  /// 加载 PDF 文件的完整字节
+  ///
+  /// 用于 SfPdfViewer.memory 渲染。
+  Future<Uint8List> loadPdfBytes(LibraryItem item) async {
     try {
-      final result = await _channel.invokeMethod<int>('pdfPageCount', {
+      final result = await _channel.invokeMethod<Uint8List>('loadPdfBytes', {
         'uri': item.uri,
-      });
-      return result ?? 0;
-    } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '读取 PDF 失败。');
-    }
-  }
-
-  Future<Uint8List> renderPdfPage({
-    required LibraryItem item,
-    required int pageIndex,
-    required int maxWidth,
-  }) async {
-    try {
-      final result = await _channel.invokeMethod<Uint8List>('renderPdfPage', {
-        'uri': item.uri,
-        'pageIndex': pageIndex,
-        'maxWidth': maxWidth,
       });
       if (result == null || result.isEmpty) {
-        throw const DocumentLibraryException('PDF 页面为空。');
+        throw const DocumentLibraryException('PDF 文件内容为空。');
       }
       return result;
     } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '渲染 PDF 失败。');
+      throw DocumentLibraryException(error.message ?? '读取 PDF 失败。');
     }
   }
 

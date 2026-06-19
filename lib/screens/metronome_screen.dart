@@ -56,8 +56,7 @@ class MetronomeScreen extends StatelessWidget {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (_) =>
-          BpmKeypadSheet(initialBpm: context.read<MetronomeController>().bpm),
+      builder: (_) => const BpmKeypadSheet(),
     );
   }
 

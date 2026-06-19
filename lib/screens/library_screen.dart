@@ -78,6 +78,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           minLines: 1,
           maxLines: 1,
           textInputAction: TextInputAction.done,
+          selectAllOnOpen: true,
         ),
       ),
     );

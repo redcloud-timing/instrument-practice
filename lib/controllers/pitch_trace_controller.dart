@@ -9,7 +9,19 @@ import '../models/pitch_reading.dart';
 import '../models/pitch_trace_recording.dart';
 import '../services/database_service.dart';
 import '../services/pitch_trace_service.dart';
+import '../utils/app_lifecycle_observer.dart';
 
+/// 音高轨迹控制器
+///
+/// 管理实时音高检测、录音和回放。
+/// 通过 [DatabaseService] 持久化设置，通过 [PitchTraceService] 访问原生音频能力。
+///
+/// 主要功能：
+/// - 实时音高检测与轨迹绘制
+/// - 录音启停与元数据管理
+/// - 录音回放控制（播放/暂停/跳转）
+/// - 频率范围与音阶过滤设置
+/// - 后台自动停止（通过 [attachLifecycleObserver]）
 class PitchTraceController extends ChangeNotifier {
   PitchTraceController(this._databaseService, this._pitchTraceService);
 
@@ -66,8 +78,17 @@ class PitchTraceController extends ChangeNotifier {
   StreamSubscription<PitchReading>? _readingSubscription;
   Timer? _playbackTimer;
   Timer? _settingsSaveDebounce;
+  AppLifecycleObserver? _lifecycleObserver;
+  bool _pausedByLifecycle = false;
   int _playbackStartRealMs = 0;
   int _playbackPausedOffset = 0;
+
+  /// notifyListeners 节流：限制 UI 刷新频率为 ~30Hz
+  int _lastNotifyMs = 0;
+  static const _notifyThrottleMs = 33; // ~30fps
+
+  /// 音高历史硬性容量上限，作为时间窗口之外的安全网
+  static const _maxHistoryLength = 20000;
 
   double _referenceA4Hz = defaultReferenceA4Hz;
   double get referenceA4Hz => _referenceA4Hz;
@@ -252,7 +273,7 @@ class PitchTraceController extends ChangeNotifier {
     _readingSubscription = _pitchTraceService.readings.listen((value) {
       reading = value;
       if (isRecordingPaused) {
-        notifyListeners();
+        _throttledNotify();
         return;
       }
       if (value.hasPitch) {
@@ -267,9 +288,22 @@ class PitchTraceController extends ChangeNotifier {
         _history.add(adjusted);
         final cutoff = adjusted.timestampMillis - 300000;
         _history.removeWhere((r) => r.timestampMillis < cutoff);
+        // 硬性容量上限：时间窗口移除之外的安全网
+        if (_history.length > _maxHistoryLength) {
+          _history.removeRange(0, _history.length - _maxHistoryLength);
+        }
       }
-      notifyListeners();
+      _throttledNotify();
     });
+  }
+
+  /// 节流版 notifyListeners，限制 UI 刷新频率为 ~30Hz
+  void _throttledNotify() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastNotifyMs >= _notifyThrottleMs) {
+      _lastNotifyMs = now;
+      notifyListeners();
+    }
   }
 
   Future<void> pauseRecording() async {
@@ -627,8 +661,29 @@ class PitchTraceController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 注册 App 生命周期监听，后台时自动停止录音
+  void attachLifecycleObserver() {
+    _lifecycleObserver?.dispose();
+    _lifecycleObserver = AppLifecycleObserver(
+      onPaused: () {
+        if (isRunning) {
+          _pausedByLifecycle = true;
+          unawaited(stop());
+        }
+      },
+      onResumed: () {
+        if (_pausedByLifecycle) {
+          _pausedByLifecycle = false;
+          unawaited(start());
+        }
+      },
+    );
+    _lifecycleObserver!.attach();
+  }
+
   @override
   void dispose() {
+    _lifecycleObserver?.dispose();
     _stopPlaybackTimer();
     final hasPendingSettingsSave = _settingsSaveDebounce?.isActive ?? false;
     _settingsSaveDebounce?.cancel();

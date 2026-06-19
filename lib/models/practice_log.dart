@@ -1,3 +1,6 @@
+/// 练习日志记录
+///
+/// 记录单日练习时长和笔记，通过 [DatabaseService] 持久化到 SQLite。
 class PracticeLog {
   const PracticeLog({
     this.id,

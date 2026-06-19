@@ -56,7 +56,7 @@ class PlaybackPositionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final noteMargin = _noteMargin;
+    const noteMargin = _noteMargin;
     final plotWidth = size.width - noteMargin;
     final playbackTs = recordingFirstMs + playbackPositionMs;
     final age = (cursorTimestamp - playbackTs) / visibleDurationMs;
@@ -149,7 +149,7 @@ class TimeAxisPainter extends CustomPainter {
 
     final w = size.width;
     final h = size.height;
-    final noteMargin = _noteMargin;
+    const noteMargin = _noteMargin;
     final plotWidth = w - noteMargin;
     final recStart = recordingStartMs;
     final leftEdge = cursor - visibleDurationMs;
@@ -330,7 +330,7 @@ class PitchCanvasPainter extends CustomPainter {
   }
 
   void _drawTimeGrid(Canvas canvas, double w, double h, int cursor) {
-    final noteMargin = _noteMargin;
+    const noteMargin = _noteMargin;
     final plotWidth = w - noteMargin;
     final leftEdge = cursor - visibleDurationMs;
     final minorStepMs = visibleDurationMs <= 8000 ? 250 : 500;
@@ -352,7 +352,7 @@ class PitchCanvasPainter extends CustomPainter {
   }
 
   void _drawGrid(Canvas canvas, double w, double h) {
-    final noteMargin = _noteMargin;
+    const noteMargin = _noteMargin;
     final noteHeight = h / _effSemitones;
     final firstVisibleMidi = _effMinMidi.ceil();
     final lastVisibleMidi = _effMaxMidi.floor();
@@ -510,7 +510,7 @@ class PitchCanvasPainter extends CustomPainter {
     int cursor,
     List<PitchReading> source,
   ) {
-    final noteMargin = _noteMargin;
+    const noteMargin = _noteMargin;
     final plotWidth = w - noteMargin;
     final leftEdge = cursor - visibleDurationMs;
     final points = <_PitchPoint>[];

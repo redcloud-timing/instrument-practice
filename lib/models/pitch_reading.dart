@@ -17,6 +17,10 @@ const noteNames = [
 
 const defaultReferenceA4Hz = 440.0;
 
+/// 音高读数
+///
+/// 表示单次音高检测结果，包含频率、振幅和清晰度。
+/// 提供 MIDI 音符换算、音名查询和音分偏差计算。
 class PitchReading {
   const PitchReading({
     required this.frequency,

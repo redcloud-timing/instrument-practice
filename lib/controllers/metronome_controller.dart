@@ -7,7 +7,20 @@ import 'package:flutter/foundation.dart';
 import '../models/metronome_preset.dart';
 import '../services/database_service.dart';
 import '../services/metronome_sound_service.dart';
+import '../utils/app_lifecycle_observer.dart';
 
+/// 节拍器控制器
+///
+/// 管理节拍器的 BPM、节拍模式、预设和音效。
+/// 通过 [DatabaseService] 持久化设置，通过 [MetronomeSoundService] 播放音效。
+///
+/// 主要功能：
+/// - BPM 调节与 Tap Tempo
+/// - 节拍模式（强/弱/次强/休止）与细分
+/// - 预设管理（保存/加载/删除）
+/// - 音效风格切换
+/// - 闪光/震动反馈
+/// - 后台自动暂停（通过 [attachLifecycleObserver]）
 class MetronomeController extends ChangeNotifier {
   MetronomeController(this._databaseService, this._soundService);
 
@@ -48,6 +61,8 @@ class MetronomeController extends ChangeNotifier {
 
   Timer? _ticker;
   Timer? _saveDebounce;
+  AppLifecycleObserver? _lifecycleObserver;
+  bool _pausedByLifecycle = false;
   final List<DateTime> _tapTempoTimes = [];
 
   int get beatsPerBar => beatPattern.length;
@@ -566,8 +581,29 @@ class MetronomeController extends ChangeNotifier {
     return [for (final row in source) List<BeatType>.of(row)];
   }
 
+  /// 注册 App 生命周期监听，后台时自动暂停节拍器
+  void attachLifecycleObserver() {
+    _lifecycleObserver?.dispose();
+    _lifecycleObserver = AppLifecycleObserver(
+      onPaused: () {
+        if (isRunning) {
+          _pausedByLifecycle = true;
+          stop();
+        }
+      },
+      onResumed: () {
+        if (_pausedByLifecycle) {
+          _pausedByLifecycle = false;
+          start();
+        }
+      },
+    );
+    _lifecycleObserver!.attach();
+  }
+
   @override
   void dispose() {
+    _lifecycleObserver?.dispose();
     _ticker?.cancel();
     _saveDebounce?.cancel();
     super.dispose();

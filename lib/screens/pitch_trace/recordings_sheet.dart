@@ -187,6 +187,7 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
           minLines: 1,
           maxLines: 1,
           textInputAction: TextInputAction.done,
+          selectAllOnOpen: true,
         ),
       ),
     );

@@ -52,6 +52,11 @@ class MainActivity : FlutterActivity() {
     private var pitchTracker: PitchTracker? = null
     private var mediaPlayer: MediaPlayer? = null
 
+    // PDF 渲染器缓存：打开一次文件，复用 renderer 渲染所有页面
+    private var cachedPdfUri: Uri? = null
+    private var cachedPdfRenderer: PdfRenderer? = null
+    private var cachedPdfDescriptor: android.os.ParcelFileDescriptor? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -113,6 +118,14 @@ class MainActivity : FlutterActivity() {
                     val uri = call.argument<String>("uri")
                     val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
                     openDocument(uri, mimeType, result)
+                }
+                "closePdf" -> {
+                    closePdfRenderer()
+                    result.success(null)
+                }
+                "loadPdfBytes" -> {
+                    val uri = call.argument<String>("uri")
+                    loadPdfBytes(uri, result)
                 }
                 else -> result.notImplemented()
             }
@@ -387,7 +400,7 @@ class MainActivity : FlutterActivity() {
                 }
 
                 val output = renderer.openPage(pageIndex).use { page ->
-                    val width = maxWidth.coerceIn(320, 2200)
+                    val width = maxWidth.coerceIn(320, 1200)
                     val ratio = page.height.toFloat() / page.width.toFloat()
                     val height = (width * ratio).toInt().coerceAtLeast(1)
                     val bitmap = Bitmap.createBitmap(
@@ -434,14 +447,50 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun <T> withPdfRenderer(uri: Uri, block: (PdfRenderer) -> T): T {
-        val descriptor = contentResolver.openFileDescriptor(uri, "r")
-            ?: throw IllegalStateException("无法打开 PDF。")
+        // 如果缓存的 URI 不同，先关闭旧的
+        if (cachedPdfUri != uri) {
+            closePdfRenderer()
+        }
+
+        // 打开或复用缓存的 renderer
+        if (cachedPdfRenderer == null) {
+            val descriptor = contentResolver.openFileDescriptor(uri, "r")
+                ?: throw IllegalStateException("无法打开 PDF。")
+            cachedPdfDescriptor = descriptor
+            cachedPdfRenderer = PdfRenderer(descriptor)
+            cachedPdfUri = uri
+        }
+
+        return block(cachedPdfRenderer!!)
+    }
+
+    private fun closePdfRenderer() {
         try {
-            PdfRenderer(descriptor).use { renderer ->
-                return block(renderer)
-            }
-        } finally {
-            descriptor.close()
+            cachedPdfRenderer?.close()
+        } catch (_: Exception) {}
+        try {
+            cachedPdfDescriptor?.close()
+        } catch (_: Exception) {}
+        cachedPdfRenderer = null
+        cachedPdfDescriptor = null
+        cachedPdfUri = null
+    }
+
+    private fun loadPdfBytes(uriString: String?, result: MethodChannel.Result) {
+        if (uriString.isNullOrBlank()) {
+            result.error("INVALID_URI", "PDF 地址无效。", null)
+            return
+        }
+
+        try {
+            val uri = Uri.parse(uriString)
+            val inputStream = contentResolver.openInputStream(uri)
+                ?: throw IllegalStateException("无法打开 PDF 文件。")
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+            result.success(bytes)
+        } catch (error: Exception) {
+            result.error("LOAD_PDF_FAILED", error.message ?: "加载 PDF 失败。", null)
         }
     }
 

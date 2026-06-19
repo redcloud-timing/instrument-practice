@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../controllers/library_controller.dart';
 import '../models/library_item.dart';
@@ -17,46 +18,67 @@ class DocumentViewerScreen extends StatefulWidget {
 }
 
 class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
-  final Map<String, Future<Uint8List>> _pdfPageCache = {};
-
   String? _loadedUri;
-  Future<int>? _pdfPageCountFuture;
+  Uint8List? _pdfBytes;
   Future<Uint8List>? _imageBytesFuture;
+  PdfViewerController? _pdfController;
+  bool _jumpScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfController = PdfViewerController();
+  }
+
+  @override
+  void dispose() {
+    _pdfController?.dispose();
+    super.dispose();
+  }
 
   void _prepareDocument(LibraryItem item) {
     if (_loadedUri == item.uri) return;
 
     final docService = context.read<LibraryController>().documentService;
     _loadedUri = item.uri;
-    _pdfPageCache.clear();
-    _pdfPageCountFuture = item.isPdf ? docService.pdfPageCount(item) : null;
-    _imageBytesFuture = item.isImage ? docService.loadImageBytes(item) : null;
+    _jumpScheduled = false;
+
+    if (item.isPdf) {
+      docService.loadPdfBytes(item).then((bytes) {
+        if (mounted && _loadedUri == item.uri) {
+          setState(() {
+            _pdfBytes = bytes;
+          });
+        }
+      });
+    } else if (item.isImage) {
+      _imageBytesFuture = docService.loadImageBytes(item);
+    }
   }
 
-  Future<Uint8List> _loadPdfPage({
-    required LibraryItem item,
-    required int pageIndex,
-    required int renderWidth,
-  }) {
-    final cacheKey = '${item.uri}|$pageIndex|$renderWidth';
-    final cached = _pdfPageCache.remove(cacheKey);
-    if (cached != null) {
-      _pdfPageCache[cacheKey] = cached;
-      return cached;
-    }
+  void _onPdfDocumentLoaded(PdfDocumentLoadedDetails details) {
+    final item = context.read<LibraryController>().itemByUri(widget.itemUri);
+    if (item == null) return;
 
-    if (_pdfPageCache.length >= 12) {
-      _pdfPageCache.remove(_pdfPageCache.keys.first);
+    final targetPage = item.lastPageIndex + 1; // SfPdfViewer 页码从 1 开始
+    if (targetPage > 1 && targetPage <= details.document.pages.count) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_jumpScheduled) {
+          _jumpScheduled = true;
+          _pdfController?.jumpToPage(targetPage);
+        }
+      });
     }
+  }
 
-    final docService = context.read<LibraryController>().documentService;
-    final future = docService.renderPdfPage(
-      item: item,
-      pageIndex: pageIndex,
-      maxWidth: renderWidth,
-    );
-    _pdfPageCache[cacheKey] = future;
-    return future;
+  void _onPageChanged(PdfPageChangedDetails details) {
+    final item = context.read<LibraryController>().itemByUri(widget.itemUri);
+    if (item != null) {
+      context.read<LibraryController>().saveLastPageIndex(
+        item,
+        details.newPageNumber - 1,
+      );
+    }
   }
 
   Future<void> _editNote(BuildContext context, LibraryItem item) async {
@@ -104,9 +126,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
           IconButton(
             tooltip: '资料笔记',
             onPressed: () => _editNote(context, item),
-            icon: Icon(
-              item.note.isEmpty ? Icons.note_add_outlined : Icons.note,
-            ),
+            icon: const Icon(Icons.edit_note),
           ),
         ],
       ),
@@ -131,19 +151,17 @@ class _DocumentBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (item.isPdf) {
-      return _PdfReader(
-        initialPageIndex: item.lastPageIndex,
-        pageCountFuture: state._pdfPageCountFuture!,
-        loadPage: ({required int pageIndex, required int renderWidth}) {
-          return state._loadPdfPage(
-            item: item,
-            pageIndex: pageIndex,
-            renderWidth: renderWidth,
-          );
-        },
-        onPageChanged: (pageIndex) {
-          context.read<LibraryController>().saveLastPageIndex(item, pageIndex);
-        },
+      if (state._pdfBytes == null) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return SfPdfViewer.memory(
+        state._pdfBytes!,
+        controller: state._pdfController,
+        onDocumentLoaded: state._onPdfDocumentLoaded,
+        onPageChanged: state._onPageChanged,
+        canShowScrollHead: true,
+        canShowScrollStatus: true,
+        enableDoubleTapZooming: true,
       );
     }
 
@@ -173,214 +191,6 @@ class _NoteBanner extends StatelessWidget {
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
-      ),
-    );
-  }
-}
-
-class _PdfReader extends StatefulWidget {
-  const _PdfReader({
-    required this.initialPageIndex,
-    required this.pageCountFuture,
-    required this.loadPage,
-    required this.onPageChanged,
-  });
-
-  final int initialPageIndex;
-  final Future<int> pageCountFuture;
-  final Future<Uint8List> Function({
-    required int pageIndex,
-    required int renderWidth,
-  })
-  loadPage;
-  final ValueChanged<int> onPageChanged;
-
-  @override
-  State<_PdfReader> createState() => _PdfReaderState();
-}
-
-class _PdfReaderState extends State<_PdfReader> {
-  final ScrollController _scrollController = ScrollController();
-  late int _lastReportedPageIndex;
-  bool _didScheduleInitialJump = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _lastReportedPageIndex = widget.initialPageIndex;
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  double _estimatedPageExtent(BoxConstraints constraints) {
-    return (constraints.maxWidth * 1.45 + 42).clamp(320.0, 1600.0).toDouble();
-  }
-
-  void _scheduleInitialJump({
-    required int pageCount,
-    required double estimatedPageExtent,
-  }) {
-    if (_didScheduleInitialJump) return;
-    _didScheduleInitialJump = true;
-
-    final targetPage = widget.initialPageIndex.clamp(0, pageCount - 1).toInt();
-    if (targetPage <= 0) return;
-
-    void jumpToTarget() {
-      if (!mounted || !_scrollController.hasClients) return;
-
-      final maxScrollExtent = _scrollController.position.maxScrollExtent;
-      final targetOffset = (targetPage * estimatedPageExtent)
-          .clamp(0.0, maxScrollExtent)
-          .toDouble();
-      _scrollController.jumpTo(targetOffset);
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      jumpToTarget();
-      Future<void>.delayed(const Duration(milliseconds: 250), jumpToTarget);
-    });
-  }
-
-  void _reportVisiblePage({
-    required ScrollMetrics metrics,
-    required int pageCount,
-    required double estimatedPageExtent,
-  }) {
-    if (pageCount <= 0 || estimatedPageExtent <= 0) return;
-
-    final pageIndex = (metrics.pixels / estimatedPageExtent)
-        .round()
-        .clamp(0, pageCount - 1)
-        .toInt();
-    if (pageIndex == _lastReportedPageIndex) return;
-
-    _lastReportedPageIndex = pageIndex;
-    widget.onPageChanged(pageIndex);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: widget.pageCountFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _ViewerError(message: '${snapshot.error}');
-        }
-
-        final pageCount = snapshot.data ?? 0;
-        if (pageCount <= 0) {
-          return const Center(child: Text('PDF 没有可显示的页面'));
-        }
-
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-            final renderWidth = (constraints.maxWidth * pixelRatio)
-                .clamp(900, 2200)
-                .round();
-            final estimatedPageExtent = _estimatedPageExtent(constraints);
-
-            _scheduleInitialJump(
-              pageCount: pageCount,
-              estimatedPageExtent: estimatedPageExtent,
-            );
-
-            return NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification.metrics.axis != Axis.vertical) return false;
-                if (notification is ScrollUpdateNotification ||
-                    notification is ScrollEndNotification) {
-                  _reportVisiblePage(
-                    metrics: notification.metrics,
-                    pageCount: pageCount,
-                    estimatedPageExtent: estimatedPageExtent,
-                  );
-                }
-                return false;
-              },
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(12),
-                itemCount: pageCount,
-                itemBuilder: (context, index) {
-                  return _PdfPageImage(
-                    pageFuture: widget.loadPage(
-                      pageIndex: index,
-                      renderWidth: renderWidth,
-                    ),
-                    pageIndex: index,
-                    pageCount: pageCount,
-                  );
-                },
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _PdfPageImage extends StatelessWidget {
-  const _PdfPageImage({
-    required this.pageFuture,
-    required this.pageIndex,
-    required this.pageCount,
-  });
-
-  final Future<Uint8List> pageFuture;
-  final int pageIndex;
-  final int pageCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          Text(
-            '${pageIndex + 1} / $pageCount',
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-          const SizedBox(height: 6),
-          FutureBuilder<Uint8List>(
-            future: pageFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const SizedBox(
-                  height: 280,
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return _ViewerError(message: '${snapshot.error}');
-              }
-
-              return InteractiveViewer(
-                minScale: 1,
-                maxScale: 4,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Image.memory(
-                    snapshot.data!,
-                    fit: BoxFit.fitWidth,
-                    filterQuality: FilterQuality.high,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }
