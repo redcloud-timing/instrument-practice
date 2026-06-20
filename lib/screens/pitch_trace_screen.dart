@@ -42,8 +42,6 @@ class PitchCanvasColors {
     required this.directionFlat,
     required this.highlightNoteBg,
     required this.highlightNoteLine,
-    required this.timeGridMajor,
-    required this.timeGridMinor,
     required this.statusInTune,
     required this.statusSlightlyOff,
     required this.statusOff,
@@ -80,8 +78,6 @@ class PitchCanvasColors {
   final Color directionFlat;
   final Color highlightNoteBg;
   final Color highlightNoteLine;
-  final Color timeGridMajor;
-  final Color timeGridMinor;
   final Color statusInTune;
   final Color statusSlightlyOff;
   final Color statusOff;
@@ -119,8 +115,6 @@ class PitchCanvasColors {
       directionFlat: cs.primary,
       highlightNoteBg: cs.primaryContainer.withValues(alpha: 0.55),
       highlightNoteLine: cs.primary.withValues(alpha: 0.45),
-      timeGridMajor: cs.outlineVariant.withValues(alpha: 0.34),
-      timeGridMinor: cs.outlineVariant.withValues(alpha: 0.16),
       statusInTune: cs.primary,
       statusSlightlyOff: Colors.amber,
       statusOff: Colors.deepOrange,
@@ -226,209 +220,187 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
       child: Column(
         children: [
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  color: colorScheme.surface,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final canvasH = constraints.maxHeight;
-                      final canvasW = constraints.maxWidth;
-                      final effectiveCenterMidi = controller.centerMidi
-                          .toDouble();
-                      final effectiveMinMidi =
-                          effectiveCenterMidi - midiSpan / 2;
-                      final effectiveMaxMidi =
-                          effectiveCenterMidi + midiSpan / 2;
-                      final semitonesPerPixel = midiSpan / canvasH;
-                      final historyNotEmpty = history.isNotEmpty;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final canvasH = constraints.maxHeight;
+                final canvasW = constraints.maxWidth;
+                final effectiveCenterMidi = controller.centerMidi.toDouble();
+                final effectiveMinMidi = effectiveCenterMidi - midiSpan / 2;
+                final effectiveMaxMidi = effectiveCenterMidi + midiSpan / 2;
+                final semitonesPerPixel = midiSpan / canvasH;
+                final historyNotEmpty = history.isNotEmpty;
 
-                      return Stack(
-                        children: [
-                          GestureDetector(
-                            onScaleStart: (details) {
-                              if (details.pointerCount >= 2) {
-                                _beginPinchZoom(controller);
-                              } else {
-                                _isPinching = false;
-                              }
-                            },
-                            onScaleUpdate: (details) {
-                              if (!historyNotEmpty ||
-                                  (controller.isPlaying &&
-                                      !controller.isPaused) ||
-                                  (controller.isRunning &&
-                                      !controller.isRecordingPaused)) {
-                                return;
-                              }
-                              setState(() {
-                                _autoFollow = false;
-                                if (details.pointerCount >= 2) {
-                                  if (!_isPinching) {
-                                    _beginPinchZoom(controller);
-                                  }
-                                  final hScale = _dampedPinchScale(
-                                    details.horizontalScale,
-                                  );
-                                  final vScale = _dampedPinchScale(
-                                    details.verticalScale,
-                                  );
-                                  final newDuration =
-                                      (_pinchStartVisibleDurationMs / hScale)
-                                          .clamp(3000.0, 30000.0);
-                                  controller.setVisibleDurationMs(newDuration);
+                return Stack(
+                  children: [
+                    GestureDetector(
+                      onScaleStart: (details) {
+                        if (details.pointerCount >= 2) {
+                          _beginPinchZoom(controller);
+                        } else {
+                          _isPinching = false;
+                        }
+                      },
+                      onScaleUpdate: (details) {
+                        if (!historyNotEmpty ||
+                            (controller.isPlaying && !controller.isPaused) ||
+                            (controller.isRunning &&
+                                !controller.isRecordingPaused)) {
+                          return;
+                        }
+                        setState(() {
+                          _autoFollow = false;
+                          if (details.pointerCount >= 2) {
+                            if (!_isPinching) {
+                              _beginPinchZoom(controller);
+                            }
+                            final hScale = _dampedPinchScale(
+                              details.horizontalScale,
+                            );
+                            final vScale = _dampedPinchScale(
+                              details.verticalScale,
+                            );
+                            final newDuration =
+                                (_pinchStartVisibleDurationMs / hScale).clamp(
+                                  3000.0,
+                                  30000.0,
+                                );
+                            controller.setVisibleDurationMs(newDuration);
 
-                                  final newSpan = (_pinchStartMidiSpan / vScale)
-                                      .clamp(12.0, 48.0);
-                                  controller.setMidiSpan(newSpan);
-                                } else {
-                                  _isPinching = false;
-                                  // Single finger pan
-                                  final effectivePixelsPerMs =
-                                      (canvasW - _noteMargin) /
-                                      visibleDurationMs;
-                                  _scrollOffsetMs -=
-                                      details.focalPointDelta.dx /
-                                      effectivePixelsPerMs;
-                                  final isFrozen =
-                                      controller.isPaused ||
-                                      controller.isRecordingPaused;
-                                  _scrollOffsetMs = _scrollOffsetMs.clamp(
-                                    _minScrollMs(
-                                      history,
-                                      baseCursorMs,
-                                      isFrozen,
-                                    ),
-                                    _maxScrollMs(
-                                      history,
-                                      baseCursorMs,
-                                      isFrozen,
-                                      visibleDurationMs,
-                                    ),
-                                  );
-                                  _verticalOffsetSemitones +=
-                                      details.focalPointDelta.dy *
-                                      semitonesPerPixel;
-                                  _verticalOffsetSemitones =
-                                      _verticalOffsetSemitones.clamp(
-                                        _globalMinMidi - effectiveMinMidi,
-                                        _globalMaxMidi - effectiveMaxMidi,
-                                      );
-                                }
-                              });
-                            },
-                            onScaleEnd: (details) {
-                              _isPinching = false;
-                              if (_scrollOffsetMs < 1) {
-                                setState(() {
-                                  _scrollOffsetMs = 0;
-                                  _autoFollow = true;
-                                });
-                              }
-                            },
-                            child: CustomPaint(
-                              painter: PitchCanvasPainter(
-                                history: history,
-                                cursorTimestamp: cursorTs,
-                                visibleDurationMs: visibleDurationMs.toInt(),
-                                verticalOffsetSemitones:
-                                    _verticalOffsetSemitones,
-                                isRunning: controller.isRunning,
-                                scale: controller.scale,
-                                centerMidi: controller.centerMidi,
-                                hasLoadedRecording: hasLoadedRecording,
-                                isPlaying: controller.isPlaying,
-                                playbackPositionMs:
-                                    controller.playbackPositionMs,
-                                recordingFirstMs: history.isNotEmpty
-                                    ? history.first.timestampMillis
-                                    : null,
-                                colors: canvasColors,
-                                minMidi: effectiveMinMidi,
-                                maxMidi: effectiveMaxMidi,
-                                referenceA4Hz: controller.referenceA4Hz,
-                                highlightedMidi: highlightedMidi,
-                                greenThresholdCents:
-                                    controller.greenThresholdCents,
-                                yellowThresholdCents:
-                                    controller.yellowThresholdCents,
+                            final newSpan = (_pinchStartMidiSpan / vScale)
+                                .clamp(12.0, 48.0);
+                            controller.setMidiSpan(newSpan);
+                          } else {
+                            _isPinching = false;
+                            // Single finger pan
+                            final effectivePixelsPerMs =
+                                (canvasW - _noteMargin) / visibleDurationMs;
+                            _scrollOffsetMs -=
+                                details.focalPointDelta.dx /
+                                effectivePixelsPerMs;
+                            final isFrozen =
+                                controller.isPaused ||
+                                controller.isRecordingPaused;
+                            _scrollOffsetMs = _scrollOffsetMs.clamp(
+                              _minScrollMs(history, baseCursorMs, isFrozen),
+                              _maxScrollMs(
+                                history,
+                                baseCursorMs,
+                                isFrozen,
+                                visibleDurationMs,
                               ),
-                              size: Size.infinite,
-                            ),
+                            );
+                            _verticalOffsetSemitones +=
+                                details.focalPointDelta.dy * semitonesPerPixel;
+                            _verticalOffsetSemitones = _verticalOffsetSemitones
+                                .clamp(
+                                  _globalMinMidi - effectiveMinMidi,
+                                  _globalMaxMidi - effectiveMaxMidi,
+                                );
+                          }
+                        });
+                      },
+                      onScaleEnd: (details) {
+                        _isPinching = false;
+                        if (_scrollOffsetMs < 1) {
+                          setState(() {
+                            _scrollOffsetMs = 0;
+                            _autoFollow = true;
+                          });
+                        }
+                      },
+                      child: CustomPaint(
+                        painter: PitchCanvasPainter(
+                          history: history,
+                          cursorTimestamp: cursorTs,
+                          visibleDurationMs: visibleDurationMs.toInt(),
+                          verticalOffsetSemitones: _verticalOffsetSemitones,
+                          isRunning: controller.isRunning,
+                          scale: controller.scale,
+                          centerMidi: controller.centerMidi,
+                          hasLoadedRecording: hasLoadedRecording,
+                          isPlaying: controller.isPlaying,
+                          playbackPositionMs: controller.playbackPositionMs,
+                          recordingFirstMs: history.isNotEmpty
+                              ? history.first.timestampMillis
+                              : null,
+                          colors: canvasColors,
+                          minMidi: effectiveMinMidi,
+                          maxMidi: effectiveMaxMidi,
+                          referenceA4Hz: controller.referenceA4Hz,
+                          highlightedMidi: highlightedMidi,
+                          greenThresholdCents: controller.greenThresholdCents,
+                          yellowThresholdCents: controller.yellowThresholdCents,
+                        ),
+                        size: Size.infinite,
+                      ),
+                    ),
+                    if (!_autoFollow &&
+                        historyNotEmpty &&
+                        !controller.isPlaying)
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: _FloatingButton(
+                          icon: Icons.skip_next,
+                          label: '最新',
+                          onTap: () {
+                            setState(() {
+                              _scrollOffsetMs = 0;
+                              _autoFollow = true;
+                            });
+                          },
+                        ),
+                      ),
+                    if (_verticalOffsetSemitones.abs() > 0.5)
+                      Positioned(
+                        right: 12,
+                        top: 88,
+                        child: _FloatingButton(
+                          icon: Icons.vertical_align_center,
+                          label: '居中',
+                          onTap: () {
+                            setState(() {
+                              _verticalOffsetSemitones = 0;
+                            });
+                          },
+                        ),
+                      ),
+                    if (hasLoadedRecording && history.isEmpty)
+                      Center(
+                        child: Text(
+                          '该录音没有音高数据',
+                          style: TextStyle(
+                            color: colorScheme.outline,
+                            fontSize: 15,
                           ),
-                          if (!_autoFollow &&
-                              historyNotEmpty &&
-                              !controller.isPlaying)
-                            Positioned(
-                              right: 12,
-                              bottom: 12,
-                              child: _FloatingButton(
-                                icon: Icons.skip_next,
-                                label: '最新',
-                                onTap: () {
-                                  setState(() {
-                                    _scrollOffsetMs = 0;
-                                    _autoFollow = true;
-                                  });
-                                },
-                              ),
-                            ),
-                          if (_verticalOffsetSemitones.abs() > 0.5)
-                            Positioned(
-                              right: 12,
-                              top: 88,
-                              child: _FloatingButton(
-                                icon: Icons.vertical_align_center,
-                                label: '居中',
-                                onTap: () {
-                                  setState(() {
-                                    _verticalOffsetSemitones = 0;
-                                  });
-                                },
-                              ),
-                            ),
-                          if (hasLoadedRecording && history.isEmpty)
-                            Center(
-                              child: Text(
-                                '该录音没有音高数据',
-                                style: TextStyle(
-                                  color: colorScheme.outline,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                          if (controller.isPlaying &&
-                              hasLoadedRecording &&
-                              history.isNotEmpty)
-                            IgnorePointer(
-                              ignoring: controller.isPaused,
-                              child: PlaybackPositionLine(
-                                playbackPositionMs:
-                                    controller.playbackPositionMs,
-                                recordingFirstMs: history.first.timestampMillis,
-                                cursorTimestamp: cursorTs!,
-                                visibleDurationMs: visibleDurationMs.toInt(),
-                                colors: canvasColors,
-                              ),
-                            ),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            top: 0,
-                            child: _PitchRulerOverlay(
-                              reading: currentPitchReading,
-                              referenceA4Hz: controller.referenceA4Hz,
-                              onSettingsTap: () => _openSettings(context),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
+                        ),
+                      ),
+                    if (controller.isPlaying &&
+                        hasLoadedRecording &&
+                        history.isNotEmpty)
+                      IgnorePointer(
+                        ignoring: controller.isPaused,
+                        child: PlaybackPositionLine(
+                          playbackPositionMs: controller.playbackPositionMs,
+                          recordingFirstMs: history.first.timestampMillis,
+                          cursorTimestamp: cursorTs!,
+                          visibleDurationMs: visibleDurationMs.toInt(),
+                          colors: canvasColors,
+                        ),
+                      ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      child: _PitchRulerOverlay(
+                        reading: currentPitchReading,
+                        referenceA4Hz: controller.referenceA4Hz,
+                        onSettingsTap: () => _openSettings(context),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           TimeAxis(

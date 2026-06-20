@@ -302,7 +302,6 @@ class PitchCanvasPainter extends CustomPainter {
       return;
     }
 
-    _drawTimeGrid(canvas, w, h, cursor);
     _drawGrid(canvas, w, h);
     _drawPitchTrace(canvas, w, h, cursor);
     _drawScaleLabel(canvas, w);
@@ -318,41 +317,21 @@ class PitchCanvasPainter extends CustomPainter {
 
   void _drawEmptyMessage(Canvas canvas, double w, double h) {
     _drawGrid(canvas, w, h);
+    final message = isRunning
+        ? '等待声音输入...'
+        : hasLoadedRecording
+        ? '该录音没有音高数据'
+        : null;
+    if (message == null) return;
     final tp = TextPainter(
       text: TextSpan(
-        text: isRunning
-            ? '等待声音输入...'
-            : hasLoadedRecording
-            ? '该录音没有音高数据'
-            : '点击下方按钮开始记录',
+        text: message,
         style: TextStyle(color: colors.emptyText, fontSize: 15),
       ),
       textDirection: TextDirection.ltr,
     );
     tp.layout();
     tp.paint(canvas, Offset(w / 2 - tp.width / 2, h / 2 - tp.height / 2));
-  }
-
-  void _drawTimeGrid(Canvas canvas, double w, double h, int cursor) {
-    const noteMargin = _noteMargin;
-    final plotWidth = w - noteMargin;
-    final leftEdge = cursor - visibleDurationMs;
-    final minorStepMs = visibleDurationMs <= 8000 ? 250 : 500;
-    const majorStepMs = 1000;
-    final firstMinor = (leftEdge / minorStepMs).ceil() * minorStepMs;
-
-    for (var t = firstMinor; t <= cursor; t += minorStepMs) {
-      final age = (cursor - t) / visibleDurationMs;
-      final x = noteMargin + plotWidth * (1 - age);
-      final isMajor = t % majorStepMs == 0;
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, h),
-        Paint()
-          ..color = isMajor ? colors.timeGridMajor : colors.timeGridMinor
-          ..strokeWidth = isMajor ? 0.8 : 0.45,
-      );
-    }
   }
 
   void _drawGrid(Canvas canvas, double w, double h) {
