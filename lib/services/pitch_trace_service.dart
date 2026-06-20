@@ -57,11 +57,15 @@ class PitchTraceService {
   Future<void> start({
     required double minFrequency,
     required double maxFrequency,
+    int windowSize = 2048,
+    double overlapRatio = 0.5,
   }) async {
     try {
       await _methodChannel.invokeMethod<void>('start', {
         'minFrequency': minFrequency,
         'maxFrequency': maxFrequency,
+        'windowSize': windowSize,
+        'overlapRatio': overlapRatio,
       });
     } on PlatformException catch (error) {
       throw PitchTraceException(error.message ?? '启动听音失败。');

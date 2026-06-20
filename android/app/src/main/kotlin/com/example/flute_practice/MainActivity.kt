@@ -48,6 +48,8 @@ class MainActivity : FlutterActivity() {
     private var pendingPitchTraceStartResult: MethodChannel.Result? = null
     private var pendingPitchTraceMinFrequency = 80.0
     private var pendingPitchTraceMaxFrequency = 2200.0
+    private var pendingPitchTraceWindowSize = 2048
+    private var pendingPitchTraceOverlapRatio = 0.5
     private var pitchTraceEventSink: EventChannel.EventSink? = null
     private var pitchTracker: PitchTracker? = null
     private var mediaPlayer: MediaPlayer? = null
@@ -163,7 +165,9 @@ class MainActivity : FlutterActivity() {
                 "start" -> {
                     val minFrequency = call.argument<Double>("minFrequency") ?: 80.0
                     val maxFrequency = call.argument<Double>("maxFrequency") ?: 2200.0
-                    startPitchTrace(minFrequency, maxFrequency, result)
+                    val windowSize = call.argument<Int>("windowSize") ?: 2048
+                    val overlapRatio = call.argument<Double>("overlapRatio") ?: 0.5
+                    startPitchTrace(minFrequency, maxFrequency, windowSize, overlapRatio, result)
                 }
                 "stop" -> {
                     val recordingPath = stopPitchTrace()
@@ -232,10 +236,12 @@ class MainActivity : FlutterActivity() {
     private fun startPitchTrace(
         minFrequency: Double,
         maxFrequency: Double,
+        windowSize: Int,
+        overlapRatio: Double,
         result: MethodChannel.Result
     ) {
         if (hasMicrophonePermission()) {
-            startPitchTraceWithResult(minFrequency, maxFrequency, result)
+            startPitchTraceWithResult(minFrequency, maxFrequency, windowSize, overlapRatio, result)
             return
         }
 
@@ -248,6 +254,8 @@ class MainActivity : FlutterActivity() {
             pendingPitchTraceStartResult = result
             pendingPitchTraceMinFrequency = minFrequency
             pendingPitchTraceMaxFrequency = maxFrequency
+            pendingPitchTraceWindowSize = windowSize
+            pendingPitchTraceOverlapRatio = overlapRatio
             requestPermissions(
                 arrayOf(Manifest.permission.RECORD_AUDIO),
                 pitchTracePermissionRequestCode
@@ -261,6 +269,8 @@ class MainActivity : FlutterActivity() {
     private fun startPitchTraceWithResult(
         minFrequency: Double,
         maxFrequency: Double,
+        windowSize: Int = 2048,
+        overlapRatio: Double = 0.5,
         result: MethodChannel.Result
     ) {
         try {
@@ -276,6 +286,8 @@ class MainActivity : FlutterActivity() {
             }
 
             pitchTracker?.setFrequencyRange(minFrequency, maxFrequency)
+            pitchTracker?.setWindowSize(windowSize)
+            pitchTracker?.setOverlapRatio(overlapRatio)
             pitchTracker?.start()
             result.success(null)
         } catch (error: RuntimeException) {
@@ -316,10 +328,12 @@ class MainActivity : FlutterActivity() {
                 startPitchTraceWithResult(
                     pendingPitchTraceMinFrequency,
                     pendingPitchTraceMaxFrequency,
+                    pendingPitchTraceWindowSize,
+                    pendingPitchTraceOverlapRatio,
                     result
                 )
             } else {
-                result.error("MIC_PERMISSION_DENIED", "请允许麦克风权限后再使用音高轨迹。", null)
+                result.error("MIC_PERMISSION_DENIED", "请允许麦克风权限后再使用听音。", null)
             }
             return
         }
@@ -929,7 +943,10 @@ class MainActivity : FlutterActivity() {
         private val recordingsDir: File
     ) {
         private val sampleRate = 44100
-        private val windowSize = 4096
+        @Volatile
+        private var windowSize = 2048
+        @Volatile
+        private var overlapRatio = 0.5
         @Volatile
         private var minFrequency = 80.0
         @Volatile
@@ -954,6 +971,14 @@ class MainActivity : FlutterActivity() {
             }
             this.minFrequency = cleanLow
             this.maxFrequency = cleanHigh
+        }
+
+        fun setWindowSize(size: Int) {
+            windowSize = size.coerceIn(1024, 8192)
+        }
+
+        fun setOverlapRatio(ratio: Double) {
+            overlapRatio = ratio.coerceIn(0.0, 0.75)
         }
 
         @Suppress("MissingPermission")
@@ -987,16 +1012,26 @@ class MainActivity : FlutterActivity() {
             pcmShorts.clear()
 
             worker = Thread {
-                val buffer = ShortArray(windowSize)
+                val hopSize = max(1, (windowSize * (1.0 - overlapRatio)).toInt())
+                val readBuffer = ShortArray(hopSize)
+                val analysisBuffer = mutableListOf<Short>()
                 try {
                     newRecorder.startRecording()
                     while (running) {
-                        val read = newRecorder.read(buffer, 0, buffer.size)
+                        val read = newRecorder.read(readBuffer, 0, readBuffer.size)
                         if (read > 0) {
                             for (i in 0 until read) {
-                                pcmShorts.add(buffer[i])
+                                pcmShorts.add(readBuffer[i])
+                                analysisBuffer.add(readBuffer[i])
                             }
-                            onReading(analyze(buffer, read))
+                            // 当累积的样本达到窗口大小时进行分析
+                            while (analysisBuffer.size >= windowSize) {
+                                val window = analysisBuffer.take(windowSize).toShortArray()
+                                onReading(analyze(window, windowSize))
+                                // 移除 hopSize 个样本（重叠分析）
+                                val removeCount = min(hopSize, analysisBuffer.size)
+                                repeat(removeCount) { analysisBuffer.removeAt(0) }
+                            }
                         }
                     }
                 } catch (_: RuntimeException) {

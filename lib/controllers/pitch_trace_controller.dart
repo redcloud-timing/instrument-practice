@@ -115,6 +115,20 @@ class PitchTraceController extends ChangeNotifier {
   double _yellowThresholdCents = 15.0;
   double get yellowThresholdCents => _yellowThresholdCents;
 
+  /// 窗口大小：1024/2048/4096
+  int _windowSize = 2048;
+  int get windowSize => _windowSize;
+
+  /// 重叠比例：0.0/0.25/0.5/0.75
+  double _overlapRatio = 0.5;
+  double get overlapRatio => _overlapRatio;
+
+  /// 窗口大小选项
+  static const windowSizeSteps = [1024, 2048, 4096, 8192];
+
+  /// 重叠比例选项
+  static const overlapRatioSteps = [0.0, 0.25, 0.5, 0.75];
+
   MusicalScale _scale = const MusicalScale(root: 'C', type: ScaleType.major);
   MusicalScale get scale => _scale;
 
@@ -168,6 +182,14 @@ class PitchTraceController extends ChangeNotifier {
         map['yellowThresholdCents'],
         15.0,
       ).clamp(5.0, 40.0);
+      _windowSize = _readInt(map['windowSize'], 2048);
+      if (!windowSizeSteps.contains(_windowSize)) {
+        _windowSize = 2048;
+      }
+      _overlapRatio = _readDouble(map['overlapRatio'], 0.5);
+      if (!overlapRatioSteps.contains(_overlapRatio)) {
+        _overlapRatio = 0.5;
+      }
     } catch (e) {
       debugPrint('PitchTraceController._loadSettings error: $e');
     }
@@ -183,6 +205,8 @@ class PitchTraceController extends ChangeNotifier {
       'midiSpan': _midiSpan,
       'greenThresholdCents': _greenThresholdCents,
       'yellowThresholdCents': _yellowThresholdCents,
+      'windowSize': _windowSize,
+      'overlapRatio': _overlapRatio,
     };
     await _databaseService.setSetting(_settingsKey, jsonEncode(map));
   }
@@ -255,6 +279,22 @@ class PitchTraceController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setWindowSize(int value) {
+    if (!windowSizeSteps.contains(value)) return;
+    if (value == _windowSize) return;
+    _windowSize = value;
+    _scheduleSettingsSave();
+    notifyListeners();
+  }
+
+  void setOverlapRatio(double value) {
+    if (!overlapRatioSteps.contains(value)) return;
+    if (value == _overlapRatio) return;
+    _overlapRatio = value;
+    _scheduleSettingsSave();
+    notifyListeners();
+  }
+
   void _applyFrequencyRange(double minFrequency, double maxFrequency) {
     final low = minFrequency.clamp(minAllowedFrequency, maxAllowedFrequency);
     final high = maxFrequency.clamp(minAllowedFrequency, maxAllowedFrequency);
@@ -316,6 +356,8 @@ class PitchTraceController extends ChangeNotifier {
       await _pitchTraceService.start(
         minFrequency: _minFrequency,
         maxFrequency: _maxFrequency,
+        windowSize: _windowSize,
+        overlapRatio: _overlapRatio,
       );
       isRunning = true;
     } on PitchTraceException catch (error) {
@@ -801,6 +843,12 @@ double _readDouble(Object? value, double fallback) {
   if (value is double) return value;
   if (value is int) return value.toDouble();
   if (value is num) return value.toDouble();
+  return fallback;
+}
+
+int _readInt(Object? value, int fallback) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
   return fallback;
 }
 

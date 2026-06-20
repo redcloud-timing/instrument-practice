@@ -30,74 +30,7 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            '参考音 A4',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '默认 440 Hz，可按乐团或老师要求调整音名参考',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildReferenceSelector(controller),
-          const SizedBox(height: 28),
-          const Text(
-            '识别音域',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '缩小范围可以减少环境噪声和倍频误判',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildFrequencyRangeSelector(controller),
-          const SizedBox(height: 28),
-          const Text(
-            '显示范围',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '调整主界面一次显示多长时间、上下覆盖多少半音；双指缩放也会贴近这些档位。',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildTraceWindowSelector(controller),
-          const SizedBox(height: 28),
-          const Text(
-            '音阶选择',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '选择左侧音高坐标中更醒目的基准音阶',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildScaleSelector(controller, allScales),
-          const SizedBox(height: 28),
+          // ── 颜色阈值 ──
           const Text(
             '颜色阈值',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -115,6 +48,103 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
           const SizedBox(height: 12),
           _buildColorThresholdSelector(controller),
           const SizedBox(height: 28),
+
+          // ── 检测精度 ──
+          const Text(
+            '检测精度',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '调整音高检测的采样密度。小窗口+高重叠=更细腻的轨迹，但低音精度下降',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildWindowSizeSelector(controller),
+          const SizedBox(height: 28),
+
+          // ── 识别音域 ──
+          const Text(
+            '识别音域',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '缩小范围可以减少环境噪声和倍频误判',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildFrequencyRangeSelector(controller),
+          const SizedBox(height: 28),
+
+          // ── 显示范围 ──
+          const Text(
+            '显示范围',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '调整主界面一次显示多长时间、上下覆盖多少半音；双指缩放也会贴近这些档位。',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildTraceWindowSelector(controller),
+          const SizedBox(height: 28),
+
+          // ── 参考音 ──
+          const Text(
+            '参考音 A4',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '默认 440 Hz，可按乐团或老师要求调整音名参考',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildReferenceSelector(controller),
+          const SizedBox(height: 28),
+
+          // ── 音阶选择 ──
+          const Text(
+            '音阶选择',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '选择音阶后，属于该音阶的音名会高亮显示在左侧刻度上',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildScaleSelector(controller, allScales),
+          const SizedBox(height: 28),
+
+          // ── 居中音名 ──
           const Text(
             '居中音名',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -131,10 +161,25 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
           ),
           const SizedBox(height: 12),
           _buildCenterSelector(controller, centerNoteOptions),
+          const SizedBox(height: 28),
+
+          // ── 技术说明 ──
+          const Divider(height: 1),
+          const SizedBox(height: 20),
+          const Text(
+            '技术说明',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          _buildTechnicalNote(context),
         ],
       ),
     );
   }
+
+  // ──────────────────────────────────────────────
+  // 构建方法
+  // ──────────────────────────────────────────────
 
   Widget _buildTraceWindowSelector(PitchTraceController controller) {
     return Container(
@@ -180,21 +225,20 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            runSpacing: 8,
-            children: PitchTraceController.visibleDurationStepsMs.map((
-              duration,
-            ) {
-              final isSelected = controller.visibleDurationMs == duration;
+            runSpacing: 4,
+            children: PitchTraceController.visibleDurationStepsMs.map((ms) {
+              final label = '${(ms / 1000).round()}秒';
+              final isSelected = controller.visibleDurationMs == ms;
               return ChoiceChip(
-                label: Text('${(duration / 1000).round()}秒'),
+                label: Text(label),
                 selected: isSelected,
-                onSelected: (_) => controller.setVisibleDurationMs(duration),
+                onSelected: (_) => controller.setVisibleDurationMs(ms),
               );
             }).toList(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
-            '纵向范围',
+            '半音跨度',
             style: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -204,11 +248,12 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            runSpacing: 8,
+            runSpacing: 4,
             children: PitchTraceController.midiSpanSteps.map((span) {
+              final label = '${span.round()}半音';
               final isSelected = controller.midiSpan == span;
               return ChoiceChip(
-                label: Text('${span.round()}半音'),
+                label: Text(label),
                 selected: isSelected,
                 onSelected: (_) => controller.setMidiSpan(span),
               );
@@ -270,19 +315,10 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '$lowNote - $highNote',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: controller.resetFrequencyRange,
-                child: const Text('恢复默认'),
+              Text(
+                '$lowNote ${controller.minFrequency.round()} Hz  —  '
+                '$highNote ${controller.maxFrequency.round()} Hz',
+                style: const TextStyle(fontSize: 14),
               ),
             ],
           ),
@@ -290,21 +326,15 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
             values: values,
             min: PitchTraceController.minAllowedFrequency,
             max: PitchTraceController.maxAllowedFrequency,
-            divisions:
-                ((PitchTraceController.maxAllowedFrequency -
-                            PitchTraceController.minAllowedFrequency) /
-                        10)
-                    .round(),
+            divisions: 252,
             labels: RangeLabels(
-              _noteLabelForFrequency(values.start, controller.referenceA4Hz),
-              _noteLabelForFrequency(values.end, controller.referenceA4Hz),
+              '${controller.minFrequency.round()} Hz',
+              '${controller.maxFrequency.round()} Hz',
             ),
-            onChanged: (newValues) {
-              controller.setFrequencyRange(newValues.start, newValues.end);
-            },
+            onChanged: (v) => controller.setFrequencyRange(v.start, v.end),
           ),
           Text(
-            '默认范围覆盖低音人声测试和常用长笛音域；如果环境很吵，可以适当收窄。',
+            '拖动两端调整识别范围，长笛常用范围约 250–2500 Hz',
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(
@@ -363,30 +393,18 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
               ],
             ),
           ),
-          const Divider(height: 1),
           SizedBox(
             height: 200,
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 4),
               itemCount: allScales.length,
               itemBuilder: (context, index) {
                 final scale = allScales[index];
-                final isSelected = scale.label == controller.scale.label;
+                final isSelected = scale == controller.scale;
                 return ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
-                  title: Text(
-                    scale.label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.normal,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                  ),
+                  title: Text(scale.label),
+                  selected: isSelected,
                   trailing: isSelected
                       ? Icon(
                           Icons.check,
@@ -480,6 +498,146 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
     );
   }
 
+  Widget _buildWindowSizeSelector(PitchTraceController controller) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune, size: 16),
+              const SizedBox(width: 6),
+              const Text('窗口大小', style: TextStyle(fontSize: 14)),
+              const Spacer(),
+              Text(
+                '${controller.windowSize}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _windowSizeDescription(controller.windowSize),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.56),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            children: PitchTraceController.windowSizeSteps.map((size) {
+              final isSelected = size == controller.windowSize;
+              return ChoiceChip(
+                label: Text('$size'),
+                selected: isSelected,
+                onSelected: (_) => controller.setWindowSize(size),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.tune, size: 16),
+              const SizedBox(width: 6),
+              const Text('重叠比例', style: TextStyle(fontSize: 14)),
+              const Spacer(),
+              Text(
+                '${(controller.overlapRatio * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _overlapRatioDescription(controller.overlapRatio),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.56),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            children: PitchTraceController.overlapRatioSteps.map((ratio) {
+              final isSelected = ratio == controller.overlapRatio;
+              return ChoiceChip(
+                label: Text('${(ratio * 100).toInt()}%'),
+                selected: isSelected,
+                onSelected: (_) => controller.setOverlapRatio(ratio),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '当前采样率: ~${_estimatedSampleRate(controller.windowSize, controller.overlapRatio).toStringAsFixed(0)} 次/秒',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _windowSizeDescription(int size) {
+    switch (size) {
+      case 1024:
+        return '极高采样密度，适合高音乐器';
+      case 2048:
+        return '默认，平衡精度和密度';
+      case 4096:
+        return '原始精度，适合低音乐器';
+      case 8192:
+        return '最高精度，适合极低音';
+      default:
+        return '';
+    }
+  }
+
+  String _overlapRatioDescription(double ratio) {
+    switch (ratio) {
+      case 0.0:
+        return '无重叠，最低CPU负载';
+      case 0.25:
+        return '轻度重叠';
+      case 0.5:
+        return '默认，采样密度翻倍';
+      case 0.75:
+        return '高重叠，最高密度';
+      default:
+        return '';
+    }
+  }
+
+  double _estimatedSampleRate(int windowSize, double overlapRatio) {
+    const sampleRate = 44100.0;
+    final hopSize = windowSize * (1.0 - overlapRatio);
+    return sampleRate / hopSize;
+  }
+
   Widget _buildCenterSelector(
     PitchTraceController controller,
     Map<int, String> options,
@@ -518,30 +676,18 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
               ],
             ),
           ),
-          const Divider(height: 1),
           SizedBox(
             height: 200,
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 4),
               itemCount: entries.length,
               itemBuilder: (context, index) {
                 final entry = entries[index];
-                final isSelected = entry.key == controller.centerMidi;
+                final isSelected = entry.key == currentMidi;
                 return ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
-                  title: Text(
-                    entry.value,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.normal,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                  ),
+                  title: Text(entry.value),
+                  selected: isSelected,
                   trailing: isSelected
                       ? Icon(
                           Icons.check,
@@ -555,6 +701,115 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // 技术说明
+  // ──────────────────────────────────────────────
+
+  Widget _buildTechnicalNote(BuildContext context) {
+    final textColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.7);
+    const sectionStyle = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      height: 1.6,
+    );
+    const bodyStyle = TextStyle(fontSize: 13, height: 1.6);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DefaultTextStyle(
+        style: bodyStyle.copyWith(color: textColor),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── 颜色阈值说明 ──
+            const Text('颜色阈值', style: sectionStyle),
+            const SizedBox(height: 8),
+            const Text(
+              '轨迹颜色基于音分偏差（cent）着色。音分是衡量音高偏差的'
+              '对数单位：1 个半音 = 100 音分。',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '• 绿色（±N¢）：偏差在此范围内视为音准良好，轨迹显示绿色。\n'
+              '• 黄色（±M¢）：偏差超过绿色阈值但未超过黄色阈值，显示黄色。\n'
+              '• 红色：偏差超过黄色阈值，显示红色，提示需要调整。',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '阈值含义举例：\n'
+              '• ±5¢ ≈ 非常严格的音准，接近专业演奏水平\n'
+              '• ±10¢ ≈ 良好的音准，适合日常练习\n'
+              '• ±15¢ ≈ 宽松的音准，初学者适用\n'
+              '• ±25¢ ≈ 半个四分之一音，非常宽松',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '绿色阈值范围 1~20¢，黄色阈值范围 5~40¢。'
+              '系统会自动保证黄色阈值大于绿色阈值。',
+            ),
+
+            const SizedBox(height: 20),
+            const Divider(height: 1),
+            const SizedBox(height: 20),
+
+            // ── 检测精度说明 ──
+            const Text('检测精度', style: sectionStyle),
+            const SizedBox(height: 8),
+            const Text(
+              '音高检测使用 YIN 算法（一种自相关基频检测算法）。'
+              '算法每次分析一段音频"窗口"，计算其中的基频。',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '窗口大小（样本数）\n'
+              '决定每次分析的音频时长。44100 Hz 采样率下：\n'
+              '• 1024 ≈ 23ms → 约 43 次/秒，适合高音，低音精度下降\n'
+              '• 2048 ≈ 46ms → 约 21 次/秒，默认推荐\n'
+              '• 4096 ≈ 93ms → 约 11 次/秒，低音检测精度高\n'
+              '• 8192 ≈ 186ms → 约 5 次/秒，最高精度但采样稀疏',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '为什么窗口大小影响低音精度？\n'
+              'YIN 算法需要至少 2 个完整周期的波形才能准确检测基频。'
+              '低音频率低、周期长，需要更大的窗口才能容纳足够周期。\n'
+              '例如：C4（262Hz）周期约 3.8ms，2048 窗口（46ms）可容纳 '
+              '~12 个周期，精度充足。但 C2（65Hz）周期约 15ms，'
+              '2048 窗口仅容纳 ~3 个周期，可能不够稳定。',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '重叠比例\n'
+              '分析窗口之间的重叠程度。50% 重叠意味着每次前进窗口一半的'
+              '距离就开始下一次分析，采样密度翻倍但不改变单次分析精度。\n'
+              '• 0%：无重叠，每次前进整个窗口\n'
+              '• 50%：默认，每次前进半个窗口，采样密度 ×2\n'
+              '• 75%：高重叠，每次前进 1/4 窗口，采样密度 ×4',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'CPU 负载：YIN 算法复杂度 O(n²)，n 为窗口大小。'
+              '1024 窗口的计算量约为 4096 的 1/16。'
+              '重叠比例增加会线性增加计算频率，但对现代手机影响很小。\n\n'
+              '建议：\n'
+              '• 长笛、人声（C4 以上）：2048 + 50% 重叠（默认）\n'
+              '• 大提琴、低音提琴：4096 + 0% 重叠\n'
+              '• 追求极致细腻轨迹：1024 + 75% 重叠',
+            ),
+          ],
+        ),
       ),
     );
   }
