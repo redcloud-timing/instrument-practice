@@ -26,10 +26,24 @@ class MockDocumentLibraryService implements DocumentLibraryService {
   }
 
   @override
-  Future<Uint8List> loadPdfBytes(LibraryItem item) async {
-    return Uint8List(0);
-  }
+  Future<void> deleteItem(LibraryItem item) async {}
 
   @override
   Future<void> openDocument(LibraryItem item) async {}
+
+  @override
+  Future<void> openWithSystemViewer(LibraryItem item) async {}
+
+  @override
+  Future<List<Map<String, String>>> getPdfViewerApps() async {
+    return [];
+  }
+
+  @override
+  Future<Uint8List?> getAppIcon(String packageName) async {
+    return null;
+  }
+
+  @override
+  Future<void> openWithSpecificApp(LibraryItem item, String packageName) async {}
 }

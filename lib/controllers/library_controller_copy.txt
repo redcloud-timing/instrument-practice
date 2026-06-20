@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -7,17 +7,12 @@ import '../models/library_item.dart';
 import '../services/database_service.dart';
 import '../services/document_library_service.dart';
 
-/// 乐谱资料库控制器
+/// 涔愯氨璧勬枡搴撴帶鍒跺櫒
 ///
-/// 管理 PDF 乐谱和图片的导入、搜索和删除。
-/// 通过 [DatabaseService] 持久化元数据，通过 [DocumentLibraryService] 访问原生文件能力。
-///
-/// 主要功能：
-/// - 从设备导入 PDF/图片
-/// - 搜索与过滤
-/// - 笔记
-/// - 栏目管理
-/// - 容量限制（最大 60 条）
+/// 绠＄悊 PDF 涔愯氨鍜屽浘鐗囩殑瀵煎叆銆佹敹钘忋€佹悳绱㈠拰鍒犻櫎銆?/// 閫氳繃 [DatabaseService] 鎸佷箙鍖栧厓鏁版嵁锛岄€氳繃 [DocumentLibraryService] 璁块棶鍘熺敓鏂囦欢鑳藉姏銆?///
+/// 涓昏鍔熻兘锛?/// - 浠庤澶囧鍏?PDF/鍥剧墖
+/// - 鏀惰棌绠＄悊
+/// - 鎼滅储涓庤繃婊?/// - 绗旇涓庝功绛?/// - 瀹归噺闄愬埗锛堟渶澶?60 鏉★級
 class LibraryController extends ChangeNotifier {
   LibraryController(this._databaseService, this._documentService);
 
@@ -31,6 +26,12 @@ class LibraryController extends ChangeNotifier {
   bool isLoading = true;
   bool isBusy = false;
   List<LibraryItem> items = [];
+
+  List<LibraryItem> get favoriteItems {
+    final values = items.where((item) => item.isFavorite).toList();
+    values.sort(_sortByOpenedAtDesc);
+    return values;
+  }
 
   List<LibraryItem> get recentItems {
     final values = List<LibraryItem>.of(items);
@@ -179,14 +180,27 @@ class LibraryController extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> toggleFavorite(LibraryItem item) async {
+    items = [
+      for (final current in items)
+        if (current.uri == item.uri)
+          current.copyWith(isFavorite: !current.isFavorite)
+        else
+          current,
+    ];
+
+    _trimItems();
+    notifyListeners();
+    await _save();
+  }
+
   Future<void> deleteItem(LibraryItem item) async {
     items = [
       for (final current in items)
         if (current.uri != item.uri) current,
     ];
 
-    // 同时删除该乐谱的所有栏目关联
-    await _databaseService.removeItemFromAllCategories(item.uri);
+    // 鍚屾椂鍒犻櫎璇ヤ箰璋辩殑鎵€鏈夋爮鐩叧鑱?    await _databaseService.removeItemFromAllCategories(item.uri);
 
     notifyListeners();
     await _save();
@@ -220,59 +234,25 @@ class LibraryController extends ChangeNotifier {
     return rightDate.compareTo(leftDate);
   }
 
-  // ==================== 栏目管理 ====================
-
-  static const _allCategorySortOrderKey = 'category_all_sort_order';
+  // ==================== 鏍忕洰绠＄悊 ====================
 
   List<LibraryCategory> _categories = [];
   List<LibraryCategory> get categories => _categories;
 
-  /// 加载所有栏目（按 sort_order 排序）
-  Future<void> loadCategories() async {
+  /// 鍔犺浇鎵€鏈夋爮鐩?  Future<void> loadCategories() async {
     _categories = await _databaseService.getAllCategories();
     notifyListeners();
   }
 
-  /// 获取"全部"的 sort_order
-  Future<int> getAllCategorySortOrder() async {
-    final value = await _databaseService.getSetting(_allCategorySortOrderKey);
-    return int.tryParse(value ?? '') ?? -1;
-  }
-
-  /// 设置"全部"的 sort_order
-  Future<void> setAllCategorySortOrder(int order) async {
-    await _databaseService.setSetting(
-      _allCategorySortOrderKey,
-      order.toString(),
-    );
-  }
-
-  /// 获取包含"全部"在内的排序后列表（用于标签栏显示）
-  Future<List<CategoryDisplayItem>> getSortedCategoryDisplayItems() async {
-    final allOrder = await getAllCategorySortOrder();
-    final items = <CategoryDisplayItem>[
-      CategoryDisplayItem(id: null, name: '全部', sortOrder: allOrder),
-      for (final cat in _categories)
-        CategoryDisplayItem(
-          id: cat.id,
-          name: cat.name,
-          sortOrder: cat.sortOrder,
-        ),
-    ];
-    items.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return items;
-  }
-
-  /// 创建栏目（排在最前面）
+  /// 鍒涘缓鏍忕洰
   Future<LibraryCategory> createCategory(String name) async {
     final category = await _databaseService.createCategory(name);
-    // 重新从数据库加载以获取正确的排序
-    _categories = await _databaseService.getAllCategories();
+    _categories.add(category);
     notifyListeners();
     return category;
   }
 
-  /// 更新栏目名称
+  /// 鏇存柊鏍忕洰鍚嶇О
   Future<void> updateCategory(int id, String name) async {
     await _databaseService.updateCategory(id, name);
     final index = _categories.indexWhere((c) => c.id == id);
@@ -282,68 +262,32 @@ class LibraryController extends ChangeNotifier {
     }
   }
 
-  /// 删除栏目
+  /// 鍒犻櫎鏍忕洰
   Future<void> deleteCategory(int id) async {
     await _databaseService.deleteCategory(id);
     _categories.removeWhere((c) => c.id == id);
     notifyListeners();
   }
 
-  /// 交换两个栏目的排序位置
-  Future<void> swapCategories(int index1, int index2) async {
-    if (index1 < 0 ||
-        index2 < 0 ||
-        index1 >= _categories.length ||
-        index2 >= _categories.length)
-      return;
-    final cat1 = _categories[index1];
-    final cat2 = _categories[index2];
-    await _databaseService.swapCategorySortOrder(
-      cat1.id,
-      cat1.sortOrder,
-      cat2.id,
-      cat2.sortOrder,
-    );
-    // 本地交换
-    final temp = _categories[index1];
-    _categories[index1] = _categories[index2];
-    _categories[index2] = temp;
-    notifyListeners();
-  }
-
-  /// 将乐谱添加到栏目
+  /// 灏嗕箰璋辨坊鍔犲埌鏍忕洰
   Future<void> addItemToCategory(int categoryId, String itemUri) async {
     await _databaseService.addItemToCategory(categoryId, itemUri);
     notifyListeners();
   }
 
-  /// 将乐谱从栏目移除
+  /// 灏嗕箰璋变粠鏍忕洰绉婚櫎
   Future<void> removeItemFromCategory(int categoryId, String itemUri) async {
     await _databaseService.removeItemFromCategory(categoryId, itemUri);
     notifyListeners();
   }
 
-  /// 获取指定乐谱所属的栏目 ID 列表
+  /// 鑾峰彇鎸囧畾涔愯氨鎵€灞炵殑鏍忕洰 ID 鍒楄〃
   Future<List<int>> getCategoryIdsForItem(String itemUri) async {
     return await _databaseService.getCategoryIdsForItem(itemUri);
   }
 
-  /// 获取指定栏目的乐谱列表
-  List<LibraryItem> getItemsByCategory(int categoryId) {
-    // 这里需要同步获取，但数据库是异步的
-    // 所以我们在 UI 层异步获取 itemUri 列表，然后过滤
-    return items; // 实际过滤在 UI 层完成
-  }
+  /// 鑾峰彇鎸囧畾鏍忕洰鐨勪箰璋卞垪琛?  List<LibraryItem> getItemsByCategory(int categoryId) {
+    // 杩欓噷闇€瑕佸悓姝ヨ幏鍙栵紝浣嗘暟鎹簱鏄紓姝ョ殑
+    // 鎵€浠ユ垜浠湪 UI 灞傚紓姝ヨ幏鍙?itemUri 鍒楄〃锛岀劧鍚庤繃婊?    return items; // 瀹為檯杩囨护鍦?UI 灞傚畬鎴?  }
 }
 
-/// 栏目显示项（包含"全部"）
-class CategoryDisplayItem {
-  const CategoryDisplayItem({
-    required this.id,
-    required this.name,
-    required this.sortOrder,
-  });
-  final int? id; // null 表示"全部"
-  final String name;
-  final int sortOrder;
-}

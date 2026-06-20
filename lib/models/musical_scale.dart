@@ -4,7 +4,7 @@ enum ScaleType { major, minor }
 
 /// 音阶定义
 ///
-/// 定义一个音阶的根音和类型（大调/小调），用于音高轨迹的音阶过滤。
+/// 定义一个音阶的根音和类型（大调/小调），用于听音的音阶过滤。
 class MusicalScale {
   const MusicalScale({required this.root, required this.type});
 

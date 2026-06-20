@@ -259,6 +259,8 @@ class PitchCanvasPainter extends CustomPainter {
     required this.maxMidi,
     required this.referenceA4Hz,
     required this.highlightedMidi,
+    this.greenThresholdCents = 5.0,
+    this.yellowThresholdCents = 15.0,
   });
 
   final List<PitchReading> history;
@@ -277,6 +279,8 @@ class PitchCanvasPainter extends CustomPainter {
   final double maxMidi;
   final double referenceA4Hz;
   final int? highlightedMidi;
+  final double greenThresholdCents;
+  final double yellowThresholdCents;
 
   double get _effMinMidi => minMidi + verticalOffsetSemitones;
   double get _effMaxMidi => maxMidi + verticalOffsetSemitones;
@@ -479,8 +483,11 @@ class PitchCanvasPainter extends CustomPainter {
 
       if ((prev.midi - curr.midi).abs() > 4.0) continue;
 
-      final clarity = math.min(prev.reading.clarity, curr.reading.clarity);
-      linePaint.color = _segmentColor(clarity);
+      // 使用平均音分偏差决定颜色
+      final prevCents = prev.reading.centsFor(referenceA4Hz).toDouble();
+      final currCents = curr.reading.centsFor(referenceA4Hz).toDouble();
+      final avgCents = (prevCents + currCents) / 2;
+      linePaint.color = _segmentColor(avgCents);
       canvas.drawLine(
         Offset(prev.x, prev.y),
         Offset(curr.x, curr.y),
@@ -491,10 +498,17 @@ class PitchCanvasPainter extends CustomPainter {
     final dotStep = math.max(1, points.length ~/ 80);
     for (var i = 0; i < points.length; i += dotStep) {
       final p = points[i];
+      final cents = p.reading.centsFor(referenceA4Hz).toDouble();
+      final absCents = cents.abs();
+      Color baseColor;
+      if (absCents <= greenThresholdCents) {
+        baseColor = const Color(0xFF4CAF50);
+      } else if (absCents <= yellowThresholdCents) {
+        baseColor = const Color(0xFFFFC107);
+      } else {
+        baseColor = const Color(0xFFF44336);
+      }
       final clarity = p.reading.clarity.clamp(0.0, 1.0);
-      final baseColor = clarity < 0.28
-          ? colors.pitchLowClarity
-          : colors.pitchPoint;
       final radius = 0.9 + clarity * 0.8;
       canvas.drawCircle(
         Offset(p.x, p.y),
@@ -530,11 +544,18 @@ class PitchCanvasPainter extends CustomPainter {
     return points;
   }
 
-  Color _segmentColor(double clarity) {
-    if (clarity < 0.28) {
-      return colors.pitchLowClarity.withValues(alpha: 0.34);
+  Color _segmentColor(double cents) {
+    final absCents = cents.abs();
+    if (absCents <= greenThresholdCents) {
+      // 绿色：音准好
+      return const Color(0xFF4CAF50).withValues(alpha: 0.86);
+    } else if (absCents <= yellowThresholdCents) {
+      // 黄色：轻微偏差
+      return const Color(0xFFFFC107).withValues(alpha: 0.86);
+    } else {
+      // 红色：明显偏差
+      return const Color(0xFFF44336).withValues(alpha: 0.86);
     }
-    return colors.pitchLine.withValues(alpha: 0.86);
   }
 
   double _midiValue(double frequency) {
@@ -562,6 +583,8 @@ class PitchCanvasPainter extends CustomPainter {
         oldDelegate.minMidi != minMidi ||
         oldDelegate.maxMidi != maxMidi ||
         oldDelegate.referenceA4Hz != referenceA4Hz ||
-        oldDelegate.highlightedMidi != highlightedMidi;
+        oldDelegate.highlightedMidi != highlightedMidi ||
+        oldDelegate.greenThresholdCents != greenThresholdCents ||
+        oldDelegate.yellowThresholdCents != yellowThresholdCents;
   }
 }

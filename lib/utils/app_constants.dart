@@ -64,8 +64,8 @@ class AppConstants {
   /// 每拍最大细分点数
   static const maxSubdivisionDotsPerBeat = 4;
 
-  // ── 音高轨迹 ──────────────────────────────────────────
-  /// 音高轨迹设置存储键
+  // ── 听音 ──────────────────────────────────────────
+  /// 听音设置存储键
   static const pitchTraceSettingsKey = 'pitch_trace_settings_v1';
 
   /// 录音元数据存储键

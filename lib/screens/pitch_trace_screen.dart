@@ -350,6 +350,10 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
                                 maxMidi: effectiveMaxMidi,
                                 referenceA4Hz: controller.referenceA4Hz,
                                 highlightedMidi: highlightedMidi,
+                                greenThresholdCents:
+                                    controller.greenThresholdCents,
+                                yellowThresholdCents:
+                                    controller.yellowThresholdCents,
                               ),
                               size: Size.infinite,
                             ),
@@ -747,7 +751,7 @@ class _PitchRulerOverlay extends StatelessWidget {
               child: IconButton(
                 onPressed: onSettingsTap,
                 icon: const Icon(Icons.settings_outlined, size: 22),
-                tooltip: '音高轨迹设置',
+                tooltip: '听音设置',
                 style: IconButton.styleFrom(
                   backgroundColor: colorScheme.surface.withValues(alpha: 0.74),
                   minimumSize: const Size(40, 40),

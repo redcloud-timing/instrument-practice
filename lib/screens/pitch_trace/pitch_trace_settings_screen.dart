@@ -26,7 +26,7 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('音高轨迹设置')),
+      appBar: AppBar(title: const Text('听音设置')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -97,6 +97,23 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
           ),
           const SizedBox(height: 12),
           _buildScaleSelector(controller, allScales),
+          const SizedBox(height: 28),
+          const Text(
+            '颜色阈值',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '调整轨迹颜色的灵敏度，绿色=音准，黄色=轻微偏差，红色=明显偏差',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildColorThresholdSelector(controller),
           const SizedBox(height: 28),
           const Text(
             '居中音名',
@@ -380,6 +397,82 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
                   onTap: () => controller.setScale(scale),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorThresholdSelector(PitchTraceController controller) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.palette, size: 16),
+              const SizedBox(width: 6),
+              const Text('绿色阈值（音准范围）', style: TextStyle(fontSize: 14)),
+              const Spacer(),
+              Text(
+                '±${controller.greenThresholdCents.toStringAsFixed(0)}¢',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: controller.greenThresholdCents,
+            min: 1,
+            max: 20,
+            divisions: 19,
+            onChanged: (v) => controller.setGreenThresholdCents(v),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.palette, size: 16),
+              const SizedBox(width: 6),
+              const Text('黄色阈值（轻微偏差）', style: TextStyle(fontSize: 14)),
+              const Spacer(),
+              Text(
+                '±${controller.yellowThresholdCents.toStringAsFixed(0)}¢',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: controller.yellowThresholdCents,
+            min: 5,
+            max: 40,
+            divisions: 35,
+            onChanged: (v) => controller.setYellowThresholdCents(v),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '超过黄色阈值的偏差显示为红色',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.56),
             ),
           ),
         ],

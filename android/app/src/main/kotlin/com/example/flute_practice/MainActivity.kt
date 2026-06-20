@@ -51,6 +51,7 @@ class MainActivity : FlutterActivity() {
     private var pitchTraceEventSink: EventChannel.EventSink? = null
     private var pitchTracker: PitchTracker? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var pitchTraceChannel: MethodChannel? = null
 
     // PDF 渲染器缓存：打开一次文件，复用 renderer 渲染所有页面
     private var cachedPdfUri: Uri? = null
@@ -119,6 +120,28 @@ class MainActivity : FlutterActivity() {
                     val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
                     openDocument(uri, mimeType, result)
                 }
+                "getPdfFilePath" -> {
+                    val uri = call.argument<String>("uri")
+                    getPdfFilePath(uri, result)
+                }
+                "openWithSystemViewer" -> {
+                    val uri = call.argument<String>("uri")
+                    val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
+                    openWithSystemViewer(uri, mimeType, result)
+                }
+                "getPdfViewerApps" -> {
+                    getPdfViewerApps(result)
+                }
+                "getAppIcon" -> {
+                    val packageName = call.argument<String>("packageName") ?: ""
+                    getAppIcon(packageName, result)
+                }
+                "openWithSpecificApp" -> {
+                    val uri = call.argument<String>("uri")
+                    val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
+                    val packageName = call.argument<String>("packageName") ?: ""
+                    openWithSpecificApp(uri, mimeType, packageName, result)
+                }
                 "closePdf" -> {
                     closePdfRenderer()
                     result.success(null)
@@ -134,7 +157,8 @@ class MainActivity : FlutterActivity() {
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             pitchTraceChannelName
-        ).setMethodCallHandler { call, result ->
+        ).also { pitchTraceChannel = it }
+        .setMethodCallHandler { call, result ->
             when (call.method) {
                 "start" -> {
                     val minFrequency = call.argument<Double>("minFrequency") ?: 80.0
@@ -494,6 +518,127 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun getPdfFilePath(uriString: String?, result: MethodChannel.Result) {
+        if (uriString.isNullOrBlank()) {
+            result.error("INVALID_URI", "PDF 地址无效。", null)
+            return
+        }
+
+        try {
+            val uri = Uri.parse(uriString)
+            val file = File(uri.path ?: "")
+            if (file.exists()) {
+                result.success(file.absolutePath)
+            } else {
+                // 如果是 content URI，需要复制到临时文件
+                val inputStream = contentResolver.openInputStream(uri)
+                    ?: throw IllegalStateException("无法打开 PDF 文件。")
+                val tempFile = File.createTempFile("pdf_", ".pdf", cacheDir)
+                tempFile.outputStream().use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+                inputStream.close()
+                result.success(tempFile.absolutePath)
+            }
+        } catch (error: Exception) {
+            result.error("GET_FILE_PATH_FAILED", error.message ?: "获取文件路径失败。", null)
+        }
+    }
+
+    private fun openWithSystemViewer(
+        uriString: String?,
+        mimeType: String,
+        result: MethodChannel.Result
+    ) {
+        if (uriString.isNullOrBlank()) {
+            result.error("INVALID_URI", "资料地址无效。", null)
+            return
+        }
+
+        try {
+            val uri = Uri.parse(uriString)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(Intent.createChooser(intent, "用其他应用打开"))
+            result.success(null)
+        } catch (error: ActivityNotFoundException) {
+            result.error("NO_VIEWER", "没有找到可打开 PDF 的应用，请安装 PDF 阅读器。", null)
+        } catch (error: SecurityException) {
+            result.error("OPEN_DENIED", "没有权限打开这个资料，请重新添加。", null)
+        }
+    }
+
+    private fun getPdfViewerApps(result: MethodChannel.Result) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                type = "application/pdf"
+            }
+            val resolveInfos = packageManager.queryIntentActivities(intent, 0)
+            val apps = resolveInfos.map { info ->
+                mapOf(
+                    "packageName" to info.activityInfo.packageName,
+                    "appName" to info.loadLabel(packageManager).toString()
+                )
+            }
+            result.success(apps)
+        } catch (error: Exception) {
+            result.error("GET_APPS_FAILED", error.message ?: "获取应用列表失败。", null)
+        }
+    }
+
+    private fun getAppIcon(packageName: String, result: MethodChannel.Result) {
+        try {
+            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+            val drawable = packageManager.getApplicationIcon(appInfo)
+            val bitmap = android.graphics.Bitmap.createBitmap(
+                drawable.intrinsicWidth.coerceAtLeast(1),
+                drawable.intrinsicHeight.coerceAtLeast(1),
+                android.graphics.Bitmap.Config.ARGB_8888
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+
+            val stream = java.io.ByteArrayOutputStream()
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+            val bytes = stream.toByteArray()
+            result.success(bytes)
+        } catch (error: Exception) {
+            result.error("GET_ICON_FAILED", error.message ?: "获取应用图标失败。", null)
+        }
+    }
+
+    private fun openWithSpecificApp(
+        uriString: String?,
+        mimeType: String,
+        packageName: String,
+        result: MethodChannel.Result
+    ) {
+        if (uriString.isNullOrBlank()) {
+            result.error("INVALID_URI", "资料地址无效。", null)
+            return
+        }
+
+        try {
+            val uri = Uri.parse(uriString)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                setPackage(packageName)
+            }
+            startActivity(intent)
+            result.success(null)
+        } catch (error: ActivityNotFoundException) {
+            result.error("NO_VIEWER", "指定的应用无法打开 PDF。", null)
+        } catch (error: SecurityException) {
+            result.error("OPEN_DENIED", "没有权限打开这个资料，请重新添加。", null)
+        }
+    }
+
     private fun openDocument(
         uriString: String?,
         mimeType: String,
@@ -729,11 +874,16 @@ class MainActivity : FlutterActivity() {
                 start()
                 setOnCompletionListener { mp ->
                     mp.release()
-                    if (mediaPlayer === mp) mediaPlayer = null
+                    if (mediaPlayer === mp) {
+                        mediaPlayer = null
+                        // 通知 Flutter 播放完成
+                        pitchTraceChannel?.invokeMethod("onPlaybackComplete", null)
+                    }
                 }
             }
             mediaPlayer = player
-            result.success(mapOf("name" to file.name))
+            val durationMs = player.duration
+            result.success(mapOf("name" to file.name, "durationMs" to durationMs))
         } catch (e: Exception) {
             result.error("PLAYBACK_ERROR", e.message, null)
         }

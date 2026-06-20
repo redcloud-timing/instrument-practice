@@ -10,7 +10,7 @@ class DocumentLibraryException implements Exception {
 
 /// 文档资料库原生服务
 ///
-/// 通过 MethodChannel 调用原生文件选择器，支持 PDF 和图片的导入、渲染和删除。
+/// 通过 MethodChannel 调用原生文件选择器，支持 PDF 和图片的导入、删除。
 class DocumentLibraryService {
   static const MethodChannel _channel = MethodChannel(
     'flute_practice/documents',
@@ -40,7 +40,7 @@ class DocumentLibraryService {
       final result = await _channel.invokeMethod<Object?>('pickImage');
       if (result == null) return null;
       if (result is! Map) {
-        throw const DocumentLibraryException('无法读取所选图片信息。');
+        throw const DocumentLibraryException('无法读取所选文件信息。');
       }
 
       final now = DateTime.now().toIso8601String();
@@ -49,9 +49,6 @@ class DocumentLibraryService {
         addedAtIso: now,
         openedAtIso: now,
       );
-      if (!item.isImage) {
-        throw const DocumentLibraryException('请选择图片文件。');
-      }
       return item;
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '选择图片失败。');
@@ -72,20 +69,11 @@ class DocumentLibraryService {
     }
   }
 
-  /// 加载 PDF 文件的完整字节
-  ///
-  /// 用于 SfPdfViewer.memory 渲染。
-  Future<Uint8List> loadPdfBytes(LibraryItem item) async {
+  Future<void> deleteItem(LibraryItem item) async {
     try {
-      final result = await _channel.invokeMethod<Uint8List>('loadPdfBytes', {
-        'uri': item.uri,
-      });
-      if (result == null || result.isEmpty) {
-        throw const DocumentLibraryException('PDF 文件内容为空。');
-      }
-      return result;
+      await _channel.invokeMethod<void>('deleteItem', {'uri': item.uri});
     } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '读取 PDF 失败。');
+      throw DocumentLibraryException(error.message ?? '删除资料失败。');
     }
   }
 
@@ -97,6 +85,62 @@ class DocumentLibraryService {
       });
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '打开资料失败。');
+    }
+  }
+
+  /// 使用系统自带阅读器打开 PDF
+  Future<void> openWithSystemViewer(LibraryItem item) async {
+    try {
+      await _channel.invokeMethod<void>('openWithSystemViewer', {
+        'uri': item.uri,
+        'mimeType': item.mimeType,
+      });
+    } on PlatformException catch (error) {
+      throw DocumentLibraryException(error.message ?? '打开失败，请安装 PDF 阅读器。');
+    }
+  }
+
+  /// 获取已安装的 PDF 阅读器列表
+  Future<List<Map<String, String>>> getPdfViewerApps() async {
+    try {
+      final result = await _channel.invokeMethod<List<dynamic>>(
+        'getPdfViewerApps',
+      );
+      if (result == null) return [];
+      return result.map((item) {
+        final map = item as Map<dynamic, dynamic>;
+        return {
+          'packageName': map['packageName'] as String? ?? '',
+          'appName': map['appName'] as String? ?? '',
+        };
+      }).toList();
+    } on PlatformException catch (error) {
+      throw DocumentLibraryException(error.message ?? '获取应用列表失败。');
+    }
+  }
+
+  /// 获取应用图标
+  Future<Uint8List?> getAppIcon(String packageName) async {
+    try {
+      final result = await _channel.invokeMethod<Uint8List>('getAppIcon', {
+        'packageName': packageName,
+      });
+      return result;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// 使用指定应用打开 PDF
+  Future<void> openWithSpecificApp(LibraryItem item, String packageName) async {
+    try {
+      await _channel.invokeMethod<void>('openWithSpecificApp', {
+        'uri': item.uri,
+        'mimeType': item.mimeType,
+        'packageName': packageName,
+      });
+    } on PlatformException catch (error) {
+      throw DocumentLibraryException(error.message ?? '打开失败。');
     }
   }
 }

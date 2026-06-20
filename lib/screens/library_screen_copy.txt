@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +10,7 @@ import '../services/database_service.dart';
 import 'document_viewer_screen.dart';
 import 'text_edit_screen.dart';
 
-enum _LibraryTileAction { rename, delete, addToCategory }
+enum _LibraryTileAction { rename, delete, note, addToCategory }
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -24,9 +24,8 @@ class _LibraryScreenState extends State<LibraryScreen>
   final TextEditingController _searchController = TextEditingController();
   Uint8List? _defaultAppIcon;
   bool _searchExpanded = false;
-  int? _selectedCategoryId; // null 表示"全部"
-  Set<String> _categoryItemUris = {}; // 当前选中栏目下的乐谱 URI 集合
-  List<CategoryDisplayItem> _sortedDisplayItems = []; // 排序后的栏目显示列表
+  int? _selectedCategoryId; // null 琛ㄧず"鍏ㄩ儴"
+  Set<String> _categoryItemUris = {}; // 褰撳墠閫変腑鏍忕洰涓嬬殑涔愯氨 URI 闆嗗悎
 
   @override
   void initState() {
@@ -65,19 +64,13 @@ class _LibraryScreenState extends State<LibraryScreen>
         }
       }
     } catch (e) {
-      // 忽略错误
+      // 蹇界暐閿欒
     }
   }
 
   Future<void> _loadCategories() async {
     final controller = context.read<LibraryController>();
     await controller.loadCategories();
-    final items = await controller.getSortedCategoryDisplayItems();
-    if (mounted) {
-      setState(() {
-        _sortedDisplayItems = items;
-      });
-    }
   }
 
   Future<void> _loadCategoryItems(int categoryId) async {
@@ -121,7 +114,7 @@ class _LibraryScreenState extends State<LibraryScreen>
       if (!context.mounted || item == null) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('已添加：${item.title}')));
+      ).showSnackBar(SnackBar(content: Text('宸叉坊鍔狅細${item.title}')));
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -145,9 +138,9 @@ class _LibraryScreenState extends State<LibraryScreen>
       context,
       MaterialPageRoute(
         builder: (_) => TextEditScreen(
-          title: '重命名资料',
+          title: '閲嶅懡鍚嶈祫鏂?,
           initialText: item.title,
-          hintText: '输入新名称',
+          hintText: '杈撳叆鏂板悕绉?,
           selectAllOnOpen: true,
         ),
       ),
@@ -158,7 +151,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (!context.mounted) return;
 
     if (result.trim().isEmpty) {
-      _showMessage(context, '资料名称不能为空。');
+      _showMessage(context, '璧勬枡鍚嶇О涓嶈兘涓虹┖銆?);
       return;
     }
 
@@ -170,9 +163,9 @@ class _LibraryScreenState extends State<LibraryScreen>
       context,
       MaterialPageRoute(
         builder: (_) => TextEditScreen(
-          title: '资料笔记',
+          title: '璧勬枡绗旇',
           initialText: item.note,
-          hintText: '写下指法、节奏、换气或练习提醒',
+          hintText: '鍐欎笅鎸囨硶銆佽妭濂忋€佹崲姘旀垨缁冧範鎻愰啋',
         ),
       ),
     );
@@ -188,16 +181,16 @@ class _LibraryScreenState extends State<LibraryScreen>
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('移除资料'),
-          content: Text('从列表中移除「${item.title}」？'),
+          title: const Text('绉婚櫎璧勬枡'),
+          content: Text('浠庡垪琛ㄤ腑绉婚櫎銆?{item.title}銆嶏紵'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
+              child: const Text('鍙栨秷'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('移除'),
+              child: const Text('绉婚櫎'),
             ),
           ],
         );
@@ -216,11 +209,11 @@ class _LibraryScreenState extends State<LibraryScreen>
     final categories = controller.categories;
 
     if (categories.isEmpty) {
-      _showMessage(context, '还没有创建栏目，请先创建栏目');
+      _showMessage(context, '杩樻病鏈夊垱寤烘爮鐩紝璇峰厛鍒涘缓鏍忕洰');
       return;
     }
 
-    // 获取该乐谱当前所属的栏目
+    // 鑾峰彇璇ヤ箰璋卞綋鍓嶆墍灞炵殑鏍忕洰
     final currentCategoryIds = await controller.getCategoryIdsForItem(item.uri);
 
     if (!context.mounted) return;
@@ -240,7 +233,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    '将「${item.title}」添加到栏目',
+                    '灏嗐€?{item.title}銆嶆坊鍔犲埌鏍忕洰',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -270,16 +263,15 @@ class _LibraryScreenState extends State<LibraryScreen>
                               category.id,
                               item.uri,
                             );
-                            _showMessage(context, '已从「${category.name}」移除');
+                            _showMessage(context, '宸蹭粠銆?{category.name}銆嶇Щ闄?);
                           } else {
                             await controller.addItemToCategory(
                               category.id,
                               item.uri,
                             );
-                            _showMessage(context, '已添加到「${category.name}」');
+                            _showMessage(context, '宸叉坊鍔犲埌銆?{category.name}銆?);
                           }
-                          // 刷新当前栏目筛选
-                          if (_selectedCategoryId == category.id) {
+                          // 鍒锋柊褰撳墠鏍忕洰绛涢€?                          if (_selectedCategoryId == category.id) {
                             _loadCategoryItems(category.id);
                           }
                           if (sheetContext.mounted) {
@@ -298,32 +290,119 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  /// 栏目管理底部弹出面板：支持删除、重命名、排序
-  void _showCategoryManageSheet(
-    BuildContext context,
-    List<LibraryCategory> categories,
-  ) {
-    showModalBottomSheet(
+  void _showCreateCategoryDialog(BuildContext context) {
+    final TextEditingController nameController = TextEditingController();
+
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          minChildSize: 0.3,
-          maxChildSize: 0.8,
-          expand: false,
-          builder: (context, scrollController) {
-            return _CategoryManageSheet(
-              categories: categories,
-              scrollController: scrollController,
-            );
-          },
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('鍒涘缓鏂版爮鐩?),
+          content: TextField(
+            controller: nameController,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: '杈撳叆鏍忕洰鍚嶇О'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('鍙栨秷'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  _showMessage(context, '鏍忕洰鍚嶇О涓嶈兘涓虹┖');
+                  return;
+                }
+                final controller = context.read<LibraryController>();
+                await controller.createCategory(name);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+                _showMessage(context, '宸插垱寤烘爮鐩細$name');
+              },
+              child: const Text('鍒涘缓'),
+            ),
+          ],
         );
       },
-    ).whenComplete(() {
-      // 关闭面板后刷新标签栏排序
-      _loadCategories();
-    });
+    );
+  }
+
+  void _showEditCategoryDialog(BuildContext context, LibraryCategory category) {
+    final TextEditingController nameController = TextEditingController(
+      text: category.name,
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('缂栬緫鏍忕洰'),
+          content: TextField(
+            controller: nameController,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: '杈撳叆鏍忕洰鍚嶇О'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('鍙栨秷'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  _showMessage(context, '鏍忕洰鍚嶇О涓嶈兘涓虹┖');
+                  return;
+                }
+                final controller = context.read<LibraryController>();
+                await controller.updateCategory(category.id, name);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+                _showMessage(context, '宸叉洿鏂版爮鐩悕绉?);
+              },
+              child: const Text('淇濆瓨'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteCategory(
+    BuildContext context,
+    LibraryCategory category,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('鍒犻櫎鏍忕洰'),
+          content: Text('纭畾鍒犻櫎鏍忕洰銆?{category.name}銆嶏紵\n鏍忕洰涓嬬殑涔愯氨涓嶄細琚垹闄ゃ€?),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('鍙栨秷'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('鍒犻櫎'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+    final controller = context.read<LibraryController>();
+    await controller.deleteCategory(category.id);
+    if (_selectedCategoryId == category.id) {
+      _onCategoryChanged(null);
+    }
+    _showMessage(context, '宸插垹闄ゆ爮鐩細${category.name}');
   }
 
   List<LibraryItem> _filteredItems(Iterable<LibraryItem> source) {
@@ -366,15 +445,14 @@ class _LibraryScreenState extends State<LibraryScreen>
       apps = await docService.getPdfViewerApps();
     } catch (_) {
       if (context.mounted) {
-        _showMessage(context, '获取应用列表失败');
+        _showMessage(context, '鑾峰彇搴旂敤鍒楄〃澶辫触');
       }
       return;
     }
 
     final currentDefault = await dbService.getSetting('default_pdf_viewer');
 
-    // 获取每个应用的图标
-    final appIcons = <String, Uint8List>{};
+    // 鑾峰彇姣忎釜搴旂敤鐨勫浘鏍?    final appIcons = <String, Uint8List>{};
     for (final app in apps) {
       final icon = await docService.getAppIcon(app['packageName'] ?? '');
       if (icon != null) {
@@ -399,7 +477,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                 const Padding(
                   padding: EdgeInsets.all(16),
                   child: Text(
-                    '选择默认 PDF 阅读器',
+                    '閫夋嫨榛樿 PDF 闃呰鍣?,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -409,8 +487,8 @@ class _LibraryScreenState extends State<LibraryScreen>
                     children: [
                       ListTile(
                         leading: const Icon(Icons.phone_android),
-                        title: const Text('每次选择'),
-                        subtitle: const Text('打开时弹出选择器'),
+                        title: const Text('姣忔閫夋嫨'),
+                        subtitle: const Text('鎵撳紑鏃跺脊鍑洪€夋嫨鍣?),
                         trailing:
                             currentDefault == null || currentDefault.isEmpty
                             ? Icon(
@@ -427,7 +505,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                             setState(() {
                               _defaultAppIcon = null;
                             });
-                            _showMessage(context, '已清除默认应用');
+                            _showMessage(context, '宸叉竻闄ら粯璁ゅ簲鐢?);
                           }
                         },
                       ),
@@ -468,7 +546,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                               });
                               _showMessage(
                                 context,
-                                '已设置默认阅读器：${app['appName']}',
+                                '宸茶缃粯璁ら槄璇诲櫒锛?{app['appName']}',
                               );
                             }
                           },
@@ -494,34 +572,20 @@ class _LibraryScreenState extends State<LibraryScreen>
 
     final categories = controller.categories;
 
-    // 获取排序后的栏目显示列表（如果还没加载完成，用 categories 构建临时列表）
-    final displayItems = _sortedDisplayItems.isNotEmpty
-        ? _sortedDisplayItems
-        : [
-            CategoryDisplayItem(id: null, name: '全部', sortOrder: -1),
-            for (final cat in categories)
-              CategoryDisplayItem(
-                id: cat.id,
-                name: cat.name,
-                sortOrder: cat.sortOrder,
-              ),
-          ];
-
-    // 根据选中的栏目过滤乐谱
-    final visibleItems = _filteredItems(controller.recentItems);
+    // 鏍规嵁閫変腑鐨勬爮鐩繃婊や箰璋?    final visibleItems = _filteredItems(controller.recentItems);
 
     final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
       child: Column(
         children: [
-          // 合并标题栏：标题 + 统计 + 操作按钮
+          // 鍚堝苟鏍囬鏍忥細鏍囬 + 缁熻 + 鎿嶄綔鎸夐挳
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: colorScheme.surface,
             child: Column(
               children: [
-                // 第一行：标题 + 统计 + 操作按钮
+                // 绗竴琛岋細鏍囬 + 缁熻 + 鎿嶄綔鎸夐挳
                 Row(
                   children: [
                     Icon(
@@ -532,11 +596,11 @@ class _LibraryScreenState extends State<LibraryScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '乐谱资料库(${controller.items.length})',
+                        '涔愯氨(${controller.items.length}) 猸?{controller.favoriteItems.length}',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    // 搜索按钮
+                    // 鎼滅储鎸夐挳
                     IconButton(
                       onPressed: () {
                         setState(() {
@@ -550,10 +614,9 @@ class _LibraryScreenState extends State<LibraryScreen>
                         _searchExpanded ? Icons.close : Icons.search,
                         size: 22,
                       ),
-                      tooltip: _searchExpanded ? '关闭搜索' : '搜索',
+                      tooltip: _searchExpanded ? '鍏抽棴鎼滅储' : '鎼滅储',
                     ),
-                    // 默认阅读器图标
-                    GestureDetector(
+                    // 榛樿闃呰鍣ㄥ浘鏍?                    GestureDetector(
                       onTap: () => _showPdfViewerSettings(context),
                       child: Container(
                         width: 32,
@@ -580,7 +643,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // 添加按钮
+                    // 娣诲姞鎸夐挳
                     SizedBox(
                       height: 32,
                       child: FilledButton.icon(
@@ -597,7 +660,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                               )
                             : const Icon(Icons.add, size: 18),
                         label: Text(
-                          controller.isBusy ? '处理中' : '添加',
+                          controller.isBusy ? '澶勭悊涓? : '娣诲姞',
                           style: const TextStyle(fontSize: 13),
                         ),
                         style: FilledButton.styleFrom(
@@ -607,7 +670,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     ),
                   ],
                 ),
-                // 搜索框（展开时显示）
+                // 鎼滅储妗嗭紙灞曞紑鏃舵樉绀猴級
                 if (_searchExpanded) ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -615,7 +678,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     textInputAction: TextInputAction.search,
                     autofocus: true,
                     decoration: InputDecoration(
-                      hintText: '搜索资料名称或笔记...',
+                      hintText: '鎼滅储璧勬枡鍚嶇О鎴栫瑪璁?..',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
@@ -637,51 +700,45 @@ class _LibraryScreenState extends State<LibraryScreen>
               ],
             ),
           ),
-          // 栏目标签栏
-          Container(
+          // 鏍忕洰鏍囩鏍?          Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: colorScheme.surface,
             child: Row(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final displayItem in displayItems) ...[
-                          if (displayItems.indexOf(displayItem) > 0)
-                            const SizedBox(width: 8),
-                          _CategoryChip(
-                            label: displayItem.name,
-                            selected: displayItem.id == null
-                                ? _selectedCategoryId == null
-                                : _selectedCategoryId == displayItem.id,
-                            onTap: () => _onCategoryChanged(displayItem.id),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                // "鍏ㄩ儴"鏍囩
+                _CategoryChip(
+                  label: '鍏ㄩ儴',
+                  selected: _selectedCategoryId == null,
+                  onTap: () => _onCategoryChanged(null),
                 ),
-                const SizedBox(width: 6),
-                // 栏目管理设置按钮
+                // 鑷畾涔夋爮鐩爣绛?                for (final category in categories) ...[
+                  const SizedBox(width: 8),
+                  _CategoryChip(
+                    label: category.name,
+                    selected: _selectedCategoryId == category.id,
+                    onTap: () => _onCategoryChanged(category.id),
+                    onLongPress: () =>
+                        _showEditCategoryDialog(context, category),
+                    onDismissed: () => _deleteCategory(context, category),
+                  ),
+                ],
+                // 娣诲姞鏍忕洰鎸夐挳
+                const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: () => _showCategoryManageSheet(context, categories),
+                  onTap: () => _showCreateCategoryDialog(context),
                   child: Container(
-                    width: 34,
-                    height: 34,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant,
-                        width: 0.5,
-                      ),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: CustomPaint(
-                      painter: _SettingsIconPainter(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    child: Icon(
+                      Icons.add,
+                      size: 18,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -689,7 +746,7 @@ class _LibraryScreenState extends State<LibraryScreen>
             ),
           ),
           const Divider(height: 1),
-          // 资料列表
+          // 璧勬枡鍒楄〃
           Expanded(
             child: _buildItemList(
               context,
@@ -710,7 +767,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     List<LibraryCategory> categories,
   ) {
     if (visibleItems.isEmpty) {
-      return const _EmptyLibrary(message: '暂无资料，点击上方「添加」导入');
+      return const _EmptyLibrary(message: '鏆傛棤璧勬枡锛岀偣鍑讳笂鏂广€屾坊鍔犮€嶅鍏?);
     }
 
     return ListView.builder(
@@ -723,6 +780,8 @@ class _LibraryScreenState extends State<LibraryScreen>
           busy: controller.isBusy,
           categories: categories,
           onOpen: () => _openItem(context, item),
+          onFavorite: () =>
+              context.read<LibraryController>().toggleFavorite(item),
           onNote: () => _editNote(context, item),
           onRename: () => _renameItem(context, item),
           onDelete: () => _deleteItem(context, item),
@@ -738,34 +797,52 @@ class _CategoryChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
+    this.onDismissed,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onDismissed;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? colorScheme.primary
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
+    return Dismissible(
+      key: Key(label),
+      direction: onDismissed != null
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
+      onDismissed: (_) => onDismissed?.call(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        color: colorScheme.error,
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
             color: selected
-                ? colorScheme.onPrimary
-                : colorScheme.onSurfaceVariant,
-            fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
+                ? colorScheme.primary
+                : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: selected
+                  ? colorScheme.onPrimary
+                  : colorScheme.onSurfaceVariant,
+              fontWeight: selected ? FontWeight.w500 : FontWeight.normal,
+            ),
           ),
         ),
       ),
@@ -812,6 +889,7 @@ class _LibraryTile extends StatelessWidget {
     required this.busy,
     required this.categories,
     required this.onOpen,
+    required this.onFavorite,
     required this.onNote,
     required this.onRename,
     required this.onDelete,
@@ -822,6 +900,7 @@ class _LibraryTile extends StatelessWidget {
   final bool busy;
   final List<LibraryCategory> categories;
   final VoidCallback onOpen;
+  final VoidCallback onFavorite;
   final VoidCallback onNote;
   final VoidCallback onRename;
   final VoidCallback onDelete;
@@ -830,7 +909,6 @@ class _LibraryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasNote = item.note.trim().isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -855,43 +933,26 @@ class _LibraryTile extends StatelessWidget {
         ),
         title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          '${item.sizeLabel} · ${item.openedAtLabel}',
+          '${item.sizeLabel} 路 ${item.openedAtLabel}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 笔记按钮（替代原来的收藏按钮）
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: onNote,
-                  icon: Icon(
-                    hasNote ? Icons.note : Icons.note_add_outlined,
-                    color: hasNote ? colorScheme.primary : null,
-                    size: 20,
-                  ),
-                  tooltip: hasNote ? '查看笔记' : '添加笔记',
-                ),
-                if (hasNote)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
+            IconButton(
+              onPressed: onFavorite,
+              icon: Icon(
+                item.isFavorite ? Icons.star : Icons.star_outline,
+                color: item.isFavorite ? colorScheme.primary : null,
+                size: 20,
+              ),
+              tooltip: item.isFavorite ? '鍙栨秷鏀惰棌' : '鏀惰棌',
             ),
             PopupMenuButton<_LibraryTileAction>(
               onSelected: (action) {
                 switch (action) {
+                  case _LibraryTileAction.note:
+                    onNote();
                   case _LibraryTileAction.rename:
                     onRename();
                   case _LibraryTileAction.delete:
@@ -902,16 +963,20 @@ class _LibraryTile extends StatelessWidget {
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(
+                  value: _LibraryTileAction.note,
+                  child: Text('绗旇'),
+                ),
+                const PopupMenuItem(
                   value: _LibraryTileAction.rename,
-                  child: Text('重命名'),
+                  child: Text('閲嶅懡鍚?),
                 ),
                 const PopupMenuItem(
                   value: _LibraryTileAction.addToCategory,
-                  child: Text('添加到栏目'),
+                  child: Text('娣诲姞鍒版爮鐩?),
                 ),
                 const PopupMenuItem(
                   value: _LibraryTileAction.delete,
-                  child: Text('移除'),
+                  child: Text('绉婚櫎'),
                 ),
               ],
               icon: const Icon(Icons.more_vert, size: 20),
@@ -923,485 +988,3 @@ class _LibraryTile extends StatelessWidget {
   }
 }
 
-/// 栏目管理面板：支持重命名、删除、排序栏目
-class _CategoryManageSheet extends StatefulWidget {
-  const _CategoryManageSheet({
-    required this.categories,
-    required this.scrollController,
-  });
-
-  final List<LibraryCategory> categories;
-  final ScrollController scrollController;
-
-  @override
-  State<_CategoryManageSheet> createState() => _CategoryManageSheetState();
-}
-
-class _CategoryManageSheetState extends State<_CategoryManageSheet>
-    with SingleTickerProviderStateMixin {
-  late List<_ManageItem> _items;
-  late AnimationController _animController;
-  int _movingUpIndex = -1; // 正在上移的 item 索引
-  int _movingDownIndex = -1; // 正在下移的 item 索引（上面那个）
-  Map<int, int> _itemCounts = {}; // 栏目ID -> 乐谱数量
-  int _itemCountForAll = 0; // 全部乐谱数量
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _buildItems();
-  }
-
-  Future<void> _buildItems() async {
-    final controller = context.read<LibraryController>();
-    final dbService = context.read<DatabaseService>();
-    final sortedItems = await controller.getSortedCategoryDisplayItems();
-
-    // 加载每个栏目的乐谱数量
-    final counts = <int, int>{};
-    for (final cat in controller.categories) {
-      final uris = await dbService.getCategoryItemUris(cat.id);
-      counts[cat.id] = uris.length;
-    }
-
-    if (mounted) {
-      setState(() {
-        _itemCounts = counts;
-        _itemCountForAll = controller.items.length;
-        _items = [
-          for (final displayItem in sortedItems)
-            _ManageItem(
-              category: displayItem.id != null
-                  ? LibraryCategory(
-                      id: displayItem.id!,
-                      name: displayItem.name,
-                      sortOrder: displayItem.sortOrder,
-                      createdAtIso: '',
-                    )
-                  : null,
-              isAll: displayItem.id == null,
-            ),
-        ];
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  /// 点击上移
-  Future<void> _moveUp(int index) async {
-    if (index <= 0) return; // 已在最顶部
-    if (_movingUpIndex != -1) return; // 动画中
-
-    final controller = context.read<LibraryController>();
-
-    // 先获取需要交换的数据（在动画开始前）
-    final item = _items[index];
-    final aboveItem = _items[index - 1];
-
-    final itemOrder = item.isAll
-        ? await controller.getAllCategorySortOrder()
-        : item.category?.sortOrder ?? 0;
-    final aboveOrder = aboveItem.isAll
-        ? await controller.getAllCategorySortOrder()
-        : aboveItem.category?.sortOrder ?? 0;
-
-    // 启动动画
-    setState(() {
-      _movingUpIndex = index;
-      _movingDownIndex = index - 1;
-    });
-
-    // 等动画真正完成（用动画控制器的 future，不用 Future.delayed）
-    await _animController.forward(from: 0).orCancel;
-
-    // 动画完成后，交换 sort_order
-    if (item.isAll) {
-      await controller.setAllCategorySortOrder(aboveOrder);
-      if (aboveItem.category != null) {
-        final dbService = context.read<DatabaseService>();
-        await dbService.updateCategorySortOrder(
-          aboveItem.category!.id,
-          itemOrder,
-        );
-      }
-    } else if (aboveItem.isAll) {
-      await controller.setAllCategorySortOrder(itemOrder);
-      final dbService = context.read<DatabaseService>();
-      await dbService.updateCategorySortOrder(item.category!.id, aboveOrder);
-    } else {
-      final dbService = context.read<DatabaseService>();
-      await dbService.swapCategorySortOrder(
-        item.category!.id,
-        itemOrder,
-        aboveItem.category!.id,
-        aboveOrder,
-      );
-    }
-
-    if (mounted) {
-      setState(() {
-        // 交换列表数据 + 重置动画索引（原子操作，一次重建完成）
-        final temp = _items[index];
-        _items[index] = _items[index - 1];
-        _items[index - 1] = temp;
-        _movingUpIndex = -1;
-        _movingDownIndex = -1;
-      });
-      _animController.reset();
-    }
-  }
-
-  Future<void> _renameCategory(LibraryCategory category) async {
-    final controller = context.read<LibraryController>();
-    final TextEditingController nameController = TextEditingController(
-      text: category.name,
-    );
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('重命名栏目'),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: '输入新名称'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(dialogContext, name);
-              },
-              child: const Text('确定'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result == null || !mounted) return;
-
-    await controller.updateCategory(category.id, result);
-    setState(() {
-      final index = _items.indexWhere(
-        (item) => !item.isAll && item.category?.id == category.id,
-      );
-      if (index >= 0) {
-        _items[index] = _ManageItem(
-          category: _items[index].category!.copyWith(name: result),
-          isAll: false,
-        );
-      }
-    });
-  }
-
-  Future<void> _deleteCategory(LibraryCategory category) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('确认删除'),
-          content: Text('确定删除栏目「${category.name}」？\n栏目中的乐谱不会被删除。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final controller = context.read<LibraryController>();
-    await controller.deleteCategory(category.id);
-    setState(() {
-      _items.removeWhere(
-        (item) => !item.isAll && item.category?.id == category.id,
-      );
-    });
-  }
-
-  Future<void> _createCategory() async {
-    final TextEditingController nameController = TextEditingController();
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('创建新栏目'),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: '输入栏目名称'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(dialogContext, name);
-              },
-              child: const Text('创建'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result == null || !mounted) return;
-
-    final controller = context.read<LibraryController>();
-    await controller.createCategory(result);
-    await _buildItems();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Text(
-                '栏目管理',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              SizedBox(
-                height: 32,
-                child: ElevatedButton.icon(
-                  onPressed: () => _createCategory(),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('添加栏目', style: TextStyle(fontSize: 13)),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: ListView.builder(
-            controller: widget.scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            itemCount: _items.length,
-            itemBuilder: (context, index) {
-              final item = _items[index];
-              final isMovingUp = index == _movingUpIndex;
-              final isMovingDown = index == _movingDownIndex;
-              final isAtTop = index == 0;
-
-              Widget tile;
-              if (item.isAll) {
-                // "全部"栏目
-                tile = Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    leading: Icon(Icons.select_all, color: colorScheme.primary),
-                    title: Text(
-                      '全部',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    trailing: Text(
-                      '$_itemCountForAll 首',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    onTap: isAtTop ? null : () => _moveUp(index),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
-              } else {
-                final category = item.category!;
-                final count = _itemCounts[category.id] ?? 0;
-                tile = Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.folder_outlined,
-                      color: colorScheme.primary,
-                    ),
-                    title: Text(category.name),
-                    subtitle: Text(
-                      '$count 首',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    onTap: isAtTop ? null : () => _moveUp(index),
-                    trailing: SizedBox(
-                      width: 100,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          // 重命名按钮（更大点击区域）
-                          InkWell(
-                            onTap: () => _renameCategory(category),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              child: Icon(
-                                Icons.edit_outlined,
-                                size: 22,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          // 删除按钮
-                          InkWell(
-                            onTap: () => _deleteCategory(category),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              child: Icon(
-                                Icons.delete_outline,
-                                size: 22,
-                                color: colorScheme.error,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
-              }
-
-              // 动画：被点击的 item 向上滑动
-              if (isMovingUp) {
-                return SlideTransition(
-                  position:
-                      Tween<Offset>(
-                        begin: Offset.zero,
-                        end: const Offset(0, -1),
-                      ).animate(
-                        CurvedAnimation(
-                          parent: _animController,
-                          curve: Curves.easeInOut,
-                        ),
-                      ),
-                  child: tile,
-                );
-              }
-
-              // 动画：上方的 item 向下滑动
-              if (isMovingDown) {
-                return SlideTransition(
-                  position:
-                      Tween<Offset>(
-                        begin: Offset.zero,
-                        end: const Offset(0, 1),
-                      ).animate(
-                        CurvedAnimation(
-                          parent: _animController,
-                          curve: Curves.easeInOut,
-                        ),
-                      ),
-                  child: tile,
-                );
-              }
-
-              return tile;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// 管理面板中的条目
-class _ManageItem {
-  const _ManageItem({required this.category, required this.isAll});
-  final LibraryCategory? category;
-  final bool isAll;
-}
-
-/// 设置图标绘制器：三条线，每条线前面有一个点
-class _SettingsIconPainter extends CustomPainter {
-  _SettingsIconPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final dotRadius = 2.0;
-    final dotX = size.width * 0.2;
-    final lineStartX = size.width * 0.35;
-    final lineEndX = size.width * 0.8;
-    final spacing = size.height / 4;
-
-    for (int i = 0; i < 3; i++) {
-      final y = spacing * (i + 1);
-      // 画点
-      canvas.drawCircle(Offset(dotX, y), dotRadius, dotPaint);
-      // 画线
-      canvas.drawLine(Offset(lineStartX, y), Offset(lineEndX, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SettingsIconPainter oldDelegate) {
-    return color != oldDelegate.color;
-  }
-}

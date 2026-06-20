@@ -11,7 +11,7 @@ class PitchTraceException implements Exception {
   final String message;
 }
 
-/// 音高轨迹原生服务
+/// 听音原生服务
 ///
 /// 通过 MethodChannel 与原生平台通信，提供实时音高检测、录音和回放能力。
 /// 音高数据通过 EventChannel 以流的形式推送到 Dart 层。
@@ -23,7 +23,23 @@ class PitchTraceService {
     'flute_practice/pitch_trace_events',
   );
 
+  final StreamController<void> _playbackCompleteController =
+      StreamController<void>.broadcast();
+
+  /// 播放完成事件流
+  Stream<void> get onPlaybackComplete => _playbackCompleteController.stream;
+
   Stream<PitchReading>? _readings;
+
+  PitchTraceService() {
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
+  }
+
+  Future<void> _handleMethodCall(MethodCall call) async {
+    if (call.method == 'onPlaybackComplete') {
+      _playbackCompleteController.add(null);
+    }
+  }
 
   Stream<PitchReading> get readings {
     _readings ??= _eventChannel
@@ -48,7 +64,7 @@ class PitchTraceService {
         'maxFrequency': maxFrequency,
       });
     } on PlatformException catch (error) {
-      throw PitchTraceException(error.message ?? '启动音高轨迹失败。');
+      throw PitchTraceException(error.message ?? '启动听音失败。');
     }
   }
 
@@ -57,7 +73,7 @@ class PitchTraceService {
       final result = await _methodChannel.invokeMethod<Map>('stop');
       return result?['recordingPath'] as String?;
     } on PlatformException catch (error) {
-      throw PitchTraceException(error.message ?? '停止音高轨迹失败。');
+      throw PitchTraceException(error.message ?? '停止听音失败。');
     }
   }
 
@@ -90,12 +106,16 @@ class PitchTraceService {
     }
   }
 
-  Future<String?> playRecording(String path) async {
+  Future<Map<String, dynamic>?> playRecording(String path) async {
     try {
       final result = await _methodChannel.invokeMethod<Map>('playRecording', {
         'path': path,
       });
-      return result?['name'] as String?;
+      if (result == null) return null;
+      return {
+        'name': result['name'] as String?,
+        'durationMs': result['durationMs'] as int? ?? 0,
+      };
     } on PlatformException catch (error) {
       throw PitchTraceException(error.message ?? '播放录音失败。');
     }
@@ -149,5 +169,9 @@ class PitchTraceService {
     } on PlatformException catch (error) {
       throw PitchTraceException(error.message ?? '继续录音失败。');
     }
+  }
+
+  void dispose() {
+    _playbackCompleteController.close();
   }
 }

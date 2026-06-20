@@ -1,0 +1,111 @@
+﻿00:00 +0: loading C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart
+00:00 +0: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: LibraryController 鍒濆鍖?init 瀹屾垚鍚?isLoading 涓?false
+00:00 +1: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: LibraryController 鍒濆鍖?鍒濆 items 涓虹┖
+00:00 +2: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: 璧勬枡绠＄悊 addDocumentFromDevice 娣诲姞璧勬枡鍒板垪琛?00:00 +3: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: 璧勬枡绠＄悊 addDocumentFromDevice 鐢ㄦ埛鍙栨秷鏃朵笉娣诲姞
+00:00 +4: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: 璧勬枡绠＄悊 deleteItem 绉婚櫎鎸囧畾璧勬枡
+00:00 +5: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: 鏌ヨ itemByUri 杩斿洖鍖归厤椤?00:00 +6: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: 鏌ヨ itemByUri 涓嶅瓨鍦ㄦ椂杩斿洖 null
+00:00 +7: C:/Users/redcloud/Desktop/flute/test/controllers/library_controller_test.dart: 鎸佷箙鍖?娣诲姞璧勬枡鍚庝繚瀛樺埌鏁版嵁搴?00:00 +8: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: MetronomeController 鐢熷懡鍛ㄦ湡 鍚庡彴鏆傚仠锛氳繍琛屼腑鍒囧悗鍙拌嚜鍔ㄥ仠姝?00:00 +9: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: MetronomeController 鐢熷懡鍛ㄦ湡 鍓嶅彴鎭㈠锛氬悗鍙版殏鍋滃悗鍒囧洖鍓嶅彴鑷姩鎭㈠
+00:00 +10: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: MetronomeController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +11: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: MetronomeController 鐢熷懡鍛ㄦ湡 鏈繍琛屾椂鍒囧悗鍙板啀鎭㈠锛屼笉鑷姩鍚姩
+00:00 +12: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: MetronomeController 鐢熷懡鍛ㄦ湡 hidden 鐘舵€佷篃瑙﹀彂鏆傚仠
+00:00 +13: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鍚庡彴鏆傚仠锛氳繍琛屼腑鍒囧悗鍙拌嚜鍔ㄥ仠姝?00:00 +14: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鍓嶅彴鎭㈠锛氬悗鍙版殏鍋滃悗鍒囧洖鍓嶅彴鑷姩鎭㈠
+00:00 +15: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +16: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +17: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +18: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +19: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +19 ~1: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +19 ~2: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +19 ~3: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +20 ~3: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鎵嬪姩鍋滄鍚庝笉鑷姩鎭㈠
+00:00 +21 ~3: C:/Users/redcloud/Desktop/flute/test/controllers/metronome_controller_test.dart: 鑺傛媿鍣ㄥ惎鍋?stop 璁剧疆 isRunning 涓?false
+00:00 +22 ~3: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鏈繍琛屾椂鍒囧悗鍙板啀鎭㈠锛屼笉鑷姩鍚姩
+00:00 +22 ~4: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鏈繍琛屾椂鍒囧悗鍙板啀鎭㈠锛屼笉鑷姩鍚姩
+00:00 +22 ~5: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鏈繍琛屾椂鍒囧悗鍙板啀鎭㈠锛屼笉鑷姩鍚姩
+00:00 +22 ~6: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鏈繍琛屾椂鍒囧悗鍙板啀鎭㈠锛屼笉鑷姩鍚姩
+00:00 +22 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/lifecycle_test.dart: PitchTraceController 鐢熷懡鍛ㄦ湡 鏈繍琛屾椂鍒囧悗鍙板啀鎭㈠锛屼笉鑷姩鍚姩
+00:00 +23 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/metronome_controller_test.dart: 棰勮绠＄悊 saveCurrentPreset 淇濆瓨褰撳墠璁剧疆
+00:00 +24 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/metronome_controller_test.dart: 棰勮绠＄悊 applyPreset 搴旂敤棰勮璁剧疆
+00:00 +25 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/metronome_controller_test.dart: 棰勮绠＄悊 deletePreset 鍒犻櫎鎸囧畾棰勮
+00:00 +26 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: PitchTraceController 鍒濆鍖?鍒濆鐘舵€佹湭杩愯
+00:00 +27 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: PitchTraceController 鍒濆鍖?鍒濆 history 涓虹┖
+00:00 +28 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: PitchTraceController 鍒濆鍖?鍒濆鏃犻敊璇?00:00 +29 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: PitchTraceController 鍒濆鍖?榛樿鏈€灏忛鐜囦负 80 Hz
+00:00 +30 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: PitchTraceController 鍒濆鍖?榛樿鏈€澶ч鐜囦负 2200 Hz
+00:00 +31 ~7: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 鍚仠鎺у埗 start 鍚姩鍘熺敓鏈嶅姟
+00:00 +31 ~8: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 鍚仠鎺у埗 stop 鍋滄鍘熺敓鏈嶅姟
+00:00 +31 ~9: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 鍚仠鎺у埗 閲嶅 start 涓嶆姤閿?00:00 +31 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 棰戠巼鑼冨洿璁剧疆 setFrequencyRange 鏇存柊棰戠巼鑼冨洿
+00:00 +32 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 棰戠巼鑼冨洿璁剧疆 setFrequencyRange 闄愬埗鏈€灏忚竟鐣?00:00 +33 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 棰戠巼鑼冨洿璁剧疆 setFrequencyRange 闄愬埗鏈€澶ц竟鐣?00:00 +34 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/pitch_trace_controller_test.dart: 棰戠巼鑼冨洿璁剧疆 resetFrequencyRange 鎭㈠榛樿鍊?00:01 +35 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: PracticeController 鍒濆鍖?init 瀹屾垚鍚?isLoading 涓?false
+00:01 +36 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: PracticeController 鍒濆鍖?鍒濆鐘舵€佹棤杩愯璁℃椂鍣?00:01 +37 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?startTimer 鍚姩璁℃椂鍣?00:01 +38 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +39 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +40 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +41 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +42 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +43 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +44 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +45 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +46 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +47 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +48 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +49 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +50 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +51 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +52 ~10: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +52 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +52 ~10 -1: C:/Users/redcloud/Desktop/flute/test/models/metronome_preset_test.dart: MetronomePreset fromMap subdivisionBeats 闈?List 鏃朵娇鐢ㄧ┖鍒楄〃 [E]
+  Expected: empty
+    Actual: [[], [], [], []]
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\models\metronome_preset_test.dart 65:7         main.<fn>.<fn>
+  
+00:01 +53 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +54 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +55 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +56 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +57 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +58 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +59 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:01 +60 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +61 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +62 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +63 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +64 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +65 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +66 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +67 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +68 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +69 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +70 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 鍋滄璁℃椂鍣ㄥ苟杩斿洖绉掓暟
+00:02 +71 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:02 +72 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:02 +73 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:02 +74 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:02 +75 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:02 +76 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:02 +77 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範璁℃椂鍣?stopTimerAndSave 灏嗘暟鎹啓鍏ユ暟鎹簱
+00:03 +78 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範鏃ュ織 logForDate 杩斿洖鎸囧畾鏃ユ湡鐨勬棩蹇?00:03 +79 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 缁冧範鏃ュ織 logForDate 鏃犳暟鎹椂杩斿洖 null
+00:03 +80 ~10 -1: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 姣忔棩闃呰 dailyRead 榛樿涓虹┖
+00:03 +80 ~10 -2: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 姣忔棩闃呰 dailyRead 榛樿涓虹┖ [E]
+  Expected: ''
+    Actual: '銆€銆€缁冧範鍓嶅厛鏀炬澗鑲╅锛岀‘璁ゆ皵鎭ǔ瀹氥€傛參缁冧紭鍏堬紝闊宠壊浼樺厛锛岄€熷害鏈€鍚庡啀鍔犮€?
+     Which: is different. Both strings start the same, but the actual value also has the following trailing characters: 銆€銆€缁冧範鍓嶅厛鏀炬澗鑲╅ ...
+  
+  package:matcher                                      expect
+  package:flutter_test/src/widget_tester.dart 473:18   expect
+  test\controllers\practice_controller_test.dart 85:7  main.<fn>.<fn>
+  
+00:03 +80 ~10 -2: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 姣忔棩闃呰 saveDailyRead 淇濆瓨鏂囨湰
+00:03 +80 ~10 -3: C:/Users/redcloud/Desktop/flute/test/controllers/practice_controller_test.dart: 姣忔棩闃呰 saveDailyRead 淇濆瓨鏂囨湰 [E]
+  Expected: '浠婃棩缁冧範锛氶暱闊宠缁?
+    Actual: '銆€銆€浠婃棩缁冧範锛氶暱闊宠缁?
+     Which: is different.
+            Expected: 浠婃棩缁冧範锛氶暱闊宠缁?              Actual: 銆€銆€浠婃棩缁冧範锛氶暱闊宠 ...
+                      ^
+             Differ at offset 0
+  
+  package:matcher                                      expect
+  package:flutter_test/src/widget_tester.dart 473:18   expect
+  test\controllers\practice_controller_test.dart 90:7  main.<fn>.<fn>
+  
+00:03 +80 ~10 -3: Some tests failed.

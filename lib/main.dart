@@ -29,6 +29,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
+        Provider.value(value: databaseService),
         ChangeNotifierProvider(
           create: (_) => PracticeController(databaseService)..init(),
         ),
@@ -337,7 +338,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.show_chart),
             selectedIcon: Icon(Icons.show_chart),
-            label: '音高轨迹',
+            label: '听音',
           ),
         ],
       ),

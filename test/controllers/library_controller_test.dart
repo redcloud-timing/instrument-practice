@@ -76,31 +76,6 @@ void main() {
     });
   });
 
-  group('收藏功能', () {
-    test('toggleFavorite 切换收藏状态', () async {
-      mockDocService.nextPickResult = makeItem();
-      final added = await controller.addDocumentFromDevice();
-
-      await controller.toggleFavorite(added!);
-      expect(controller.items[0].isFavorite, isTrue);
-
-      await controller.toggleFavorite(controller.items[0]);
-      expect(controller.items[0].isFavorite, isFalse);
-    });
-
-    test('favoriteItems 只返回收藏项', () async {
-      mockDocService.nextPickResult = makeItem(uri: 'file:///a.pdf');
-      final a = await controller.addDocumentFromDevice();
-      await controller.toggleFavorite(a!);
-
-      mockDocService.nextPickResult = makeItem(uri: 'file:///b.pdf');
-      await controller.addDocumentFromDevice();
-
-      expect(controller.favoriteItems.length, equals(1));
-      expect(controller.favoriteItems[0].uri, equals('file:///a.pdf'));
-    });
-  });
-
   group('查询', () {
     test('itemByUri 返回匹配项', () async {
       mockDocService.nextPickResult = makeItem(uri: 'file:///find.pdf');

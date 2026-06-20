@@ -11,7 +11,7 @@ import '../services/database_service.dart';
 import '../services/pitch_trace_service.dart';
 import '../utils/app_lifecycle_observer.dart';
 
-/// 音高轨迹控制器
+/// 听音控制器
 ///
 /// 管理实时音高检测、录音和回放。
 /// 通过 [DatabaseService] 持久化设置，通过 [PitchTraceService] 访问原生音频能力。
@@ -76,12 +76,14 @@ class PitchTraceController extends ChangeNotifier {
   List<PitchTraceRecording> get recordings => List.unmodifiable(_recordings);
 
   StreamSubscription<PitchReading>? _readingSubscription;
+  StreamSubscription<void>? _playbackCompleteSubscription;
   Timer? _playbackTimer;
   Timer? _settingsSaveDebounce;
   AppLifecycleObserver? _lifecycleObserver;
   bool _pausedByLifecycle = false;
   int _playbackStartRealMs = 0;
   int _playbackPausedOffset = 0;
+  int _playbackDurationMs = 0;
 
   /// notifyListeners 节流：限制 UI 刷新频率为 ~30Hz
   int _lastNotifyMs = 0;
@@ -104,6 +106,14 @@ class PitchTraceController extends ChangeNotifier {
 
   double _midiSpan = defaultMidiSpan;
   double get midiSpan => _midiSpan;
+
+  /// 渐变色阈值：绿色范围（±cents）
+  double _greenThresholdCents = 5.0;
+  double get greenThresholdCents => _greenThresholdCents;
+
+  /// 渐变色阈值：黄色范围（±cents）
+  double _yellowThresholdCents = 15.0;
+  double get yellowThresholdCents => _yellowThresholdCents;
 
   MusicalScale _scale = const MusicalScale(root: 'C', type: ScaleType.major);
   MusicalScale get scale => _scale;
@@ -150,6 +160,14 @@ class PitchTraceController extends ChangeNotifier {
         _readDouble(map['midiSpan'], defaultMidiSpan),
         midiSpanSteps,
       );
+      _greenThresholdCents = _readDouble(
+        map['greenThresholdCents'],
+        5.0,
+      ).clamp(1.0, 20.0);
+      _yellowThresholdCents = _readDouble(
+        map['yellowThresholdCents'],
+        15.0,
+      ).clamp(5.0, 40.0);
     } catch (e) {
       debugPrint('PitchTraceController._loadSettings error: $e');
     }
@@ -163,6 +181,8 @@ class PitchTraceController extends ChangeNotifier {
       'pitchDetectorVersion': 2,
       'visibleDurationMs': _visibleDurationMs,
       'midiSpan': _midiSpan,
+      'greenThresholdCents': _greenThresholdCents,
+      'yellowThresholdCents': _yellowThresholdCents,
     };
     await _databaseService.setSetting(_settingsKey, jsonEncode(map));
   }
@@ -207,6 +227,30 @@ class PitchTraceController extends ChangeNotifier {
     final cleanValue = _nearestStep(value, midiSpanSteps);
     if (cleanValue == _midiSpan) return;
     _midiSpan = cleanValue;
+    _scheduleSettingsSave();
+    notifyListeners();
+  }
+
+  void setGreenThresholdCents(double value) {
+    final cleanValue = value.clamp(1.0, 20.0);
+    if (cleanValue == _greenThresholdCents) return;
+    _greenThresholdCents = cleanValue;
+    // 确保黄色阈值大于绿色阈值
+    if (_yellowThresholdCents <= _greenThresholdCents) {
+      _yellowThresholdCents = _greenThresholdCents + 5.0;
+    }
+    _scheduleSettingsSave();
+    notifyListeners();
+  }
+
+  void setYellowThresholdCents(double value) {
+    final cleanValue = value.clamp(5.0, 40.0);
+    if (cleanValue == _yellowThresholdCents) return;
+    _yellowThresholdCents = cleanValue;
+    // 确保黄色阈值大于绿色阈值
+    if (_yellowThresholdCents <= _greenThresholdCents) {
+      _greenThresholdCents = _yellowThresholdCents - 5.0;
+    }
     _scheduleSettingsSave();
     notifyListeners();
   }
@@ -546,20 +590,32 @@ class PitchTraceController extends ChangeNotifier {
     try {
       await _pitchTraceService.stopPlayback();
       _stopPlaybackTimer();
+      _playbackCompleteSubscription?.cancel();
 
       _loadedRecordingHistory.clear();
       _loadedRecordingPath = path;
       final history = _loadPitchHistory(path);
       _loadedRecordingHistory.addAll(history);
 
-      final name = await _pitchTraceService.playRecording(path);
+      final result = await _pitchTraceService.playRecording(path);
       playingPath = path;
-      playingName = recordingDisplayName(path, fallback: name ?? '录音');
+      playingName = recordingDisplayName(
+        path,
+        fallback: result?['name'] ?? '录音',
+      );
       isPlaying = true;
       isPaused = false;
       _playbackPositionMs = 0;
       _playbackPausedOffset = 0;
+      _playbackDurationMs = result?['durationMs'] as int? ?? 0;
       _startPlaybackTimer();
+
+      // 监听播放完成事件
+      _playbackCompleteSubscription = _pitchTraceService.onPlaybackComplete
+          .listen((_) {
+            _onPlaybackComplete();
+          });
+
       notifyListeners();
     } on PitchTraceException catch (error) {
       errorMessage = error.message;
@@ -612,17 +668,29 @@ class PitchTraceController extends ChangeNotifier {
     try {
       await _pitchTraceService.stopPlayback();
       _stopPlaybackTimer();
+      _playbackCompleteSubscription?.cancel();
+      _playbackCompleteSubscription = null;
       playingPath = null;
       playingName = null;
       isPlaying = false;
       isPaused = false;
       _playbackPositionMs = 0;
+      _playbackDurationMs = 0;
       _loadedRecordingHistory.clear();
       _loadedRecordingPath = null;
       notifyListeners();
     } on PitchTraceException catch (error) {
       errorMessage = error.message;
     }
+  }
+
+  void _onPlaybackComplete() {
+    if (!isPlaying) return;
+    _stopPlaybackTimer();
+    isPlaying = false;
+    isPaused = false;
+    _playbackPositionMs = _playbackDurationMs;
+    notifyListeners();
   }
 
   void _startPlaybackTimer() {
@@ -632,6 +700,12 @@ class PitchTraceController extends ChangeNotifier {
       if (!isPlaying || isPaused) return;
       _playbackPositionMs =
           DateTime.now().millisecondsSinceEpoch - _playbackStartRealMs;
+      // 检查是否超过录音时长
+      if (_playbackDurationMs > 0 &&
+          _playbackPositionMs >= _playbackDurationMs) {
+        _onPlaybackComplete();
+        return;
+      }
       notifyListeners();
     });
   }
@@ -642,6 +716,12 @@ class PitchTraceController extends ChangeNotifier {
       if (!isPlaying || isPaused) return;
       _playbackPositionMs =
           DateTime.now().millisecondsSinceEpoch - _playbackStartRealMs;
+      // 检查是否超过录音时长
+      if (_playbackDurationMs > 0 &&
+          _playbackPositionMs >= _playbackDurationMs) {
+        _onPlaybackComplete();
+        return;
+      }
       notifyListeners();
     });
   }
@@ -685,6 +765,7 @@ class PitchTraceController extends ChangeNotifier {
   void dispose() {
     _lifecycleObserver?.dispose();
     _stopPlaybackTimer();
+    _playbackCompleteSubscription?.cancel();
     final hasPendingSettingsSave = _settingsSaveDebounce?.isActive ?? false;
     _settingsSaveDebounce?.cancel();
     if (hasPendingSettingsSave) {
