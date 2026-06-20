@@ -294,7 +294,21 @@ class PitchTraceController extends ChangeNotifier {
     isRecordingPaused = false;
     _pauseStartMs = 0;
     _totalPauseOffsetMs = 0;
-    _stopPlaybackTimer();
+
+    // 互斥：开始录音前停止播放
+    if (isPlaying) {
+      await _pitchTraceService.stopPlayback();
+      _stopPlaybackTimer();
+      _playbackCompleteSubscription?.cancel();
+      _playbackCompleteSubscription = null;
+      playingPath = null;
+      playingName = null;
+      isPlaying = false;
+      isPaused = false;
+      _playbackPositionMs = 0;
+      _playbackDurationMs = 0;
+    }
+
     notifyListeners();
 
     try {
@@ -588,6 +602,11 @@ class PitchTraceController extends ChangeNotifier {
 
   Future<void> playRecording(String path) async {
     try {
+      // 互斥：开始播放前停止录音
+      if (isRunning) {
+        await stop();
+      }
+
       await _pitchTraceService.stopPlayback();
       _stopPlaybackTimer();
       _playbackCompleteSubscription?.cancel();
