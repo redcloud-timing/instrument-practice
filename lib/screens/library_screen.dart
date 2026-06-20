@@ -145,7 +145,7 @@ class _LibraryScreenState extends State<LibraryScreen>
       context,
       MaterialPageRoute(
         builder: (_) => TextEditScreen(
-          title: '重命名资料',
+          title: '重命名乐谱',
           initialText: item.title,
           hintText: '输入新名称',
           selectAllOnOpen: true,
@@ -158,7 +158,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (!context.mounted) return;
 
     if (result.trim().isEmpty) {
-      _showMessage(context, '资料名称不能为空。');
+      _showMessage(context, '乐谱名称不能为空。');
       return;
     }
 
@@ -170,7 +170,7 @@ class _LibraryScreenState extends State<LibraryScreen>
       context,
       MaterialPageRoute(
         builder: (_) => TextEditScreen(
-          title: '资料笔记',
+          title: '乐谱笔记',
           initialText: item.note,
           hintText: '写下指法、节奏、换气或练习提醒',
         ),
@@ -188,7 +188,7 @@ class _LibraryScreenState extends State<LibraryScreen>
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('移除资料'),
+          title: const Text('移除乐谱'),
           content: Text('从列表中移除「${item.title}」？'),
           actions: [
             TextButton(
@@ -532,7 +532,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '乐谱资料库(${controller.items.length})',
+                        '乐谱库(${controller.items.length})',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
@@ -615,7 +615,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                     textInputAction: TextInputAction.search,
                     autofocus: true,
                     decoration: InputDecoration(
-                      hintText: '搜索资料名称或笔记...',
+                      hintText: '搜索乐谱名称或笔记...',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
@@ -689,7 +689,7 @@ class _LibraryScreenState extends State<LibraryScreen>
             ),
           ),
           const Divider(height: 1),
-          // 资料列表
+          // 乐谱列表
           Expanded(
             child: _buildItemList(
               context,
@@ -710,7 +710,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     List<LibraryCategory> categories,
   ) {
     if (visibleItems.isEmpty) {
-      return const _EmptyLibrary(message: '暂无资料，点击上方「添加」导入');
+      return const _EmptyLibrary(message: '暂无乐谱，点击上方「添加」导入');
     }
 
     return ListView.builder(

@@ -94,7 +94,7 @@ class LibraryItem {
   factory LibraryItem.fromMap(Map<String, dynamic> map) {
     return LibraryItem(
       uri: (map['uri'] as String? ?? '').trim(),
-      title: (map['title'] as String? ?? '未命名资料').trim(),
+      title: (map['title'] as String? ?? '未命名乐谱').trim(),
       mimeType: (map['mimeType'] as String? ?? 'application/pdf').trim(),
       addedAtIso: (map['addedAtIso'] as String? ?? '').trim(),
       openedAtIso: (map['openedAtIso'] as String? ?? '').trim(),
@@ -112,7 +112,7 @@ class LibraryItem {
   }) {
     return LibraryItem(
       uri: (map['uri'] as String? ?? '').trim(),
-      title: (map['name'] as String? ?? '未命名资料').trim(),
+      title: (map['name'] as String? ?? '未命名乐谱').trim(),
       mimeType: (map['mimeType'] as String? ?? 'application/pdf').trim(),
       addedAtIso: addedAtIso,
       openedAtIso: openedAtIso,

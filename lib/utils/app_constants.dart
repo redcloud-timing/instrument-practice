@@ -42,8 +42,8 @@ class AppConstants {
   static const defaultFontSize = 16.0;
   static const firstLineIndent = '　　';
 
-  // ── 节拍器 ────────────────────────────────────────────
-  /// 节拍器设置存储键
+  // ── 节拍 ────────────────────────────────────────────
+  /// 节拍设置存储键
   static const metronomeSettingsKey = 'metronome_settings_v4';
 
   /// 自定义预设名称

@@ -7,7 +7,7 @@ import '../models/library_item.dart';
 import '../services/database_service.dart';
 import '../services/document_library_service.dart';
 
-/// 乐谱资料库控制器
+/// 乐谱库控制器
 ///
 /// 管理 PDF 乐谱和图片的导入、搜索和删除。
 /// 通过 [DatabaseService] 持久化元数据，通过 [DocumentLibraryService] 访问原生文件能力。

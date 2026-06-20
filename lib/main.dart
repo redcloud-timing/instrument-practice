@@ -328,12 +328,12 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.music_note_outlined),
             selectedIcon: Icon(Icons.music_note),
-            label: '节拍器',
+            label: '节拍',
           ),
           NavigationDestination(
             icon: Icon(Icons.library_music_outlined),
             selectedIcon: Icon(Icons.library_music),
-            label: '资料',
+            label: '乐谱',
           ),
           NavigationDestination(
             icon: Icon(Icons.show_chart),

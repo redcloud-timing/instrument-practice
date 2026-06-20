@@ -9,9 +9,9 @@ import '../services/database_service.dart';
 import '../services/metronome_sound_service.dart';
 import '../utils/app_lifecycle_observer.dart';
 
-/// 节拍器控制器
+/// 节拍控制器
 ///
-/// 管理节拍器的 BPM、节拍模式、预设和音效。
+/// 管理节拍的 BPM、节拍模式、预设和音效。
 /// 通过 [DatabaseService] 持久化设置，通过 [MetronomeSoundService] 播放音效。
 ///
 /// 主要功能：
@@ -581,7 +581,7 @@ class MetronomeController extends ChangeNotifier {
     return [for (final row in source) List<BeatType>.of(row)];
   }
 
-  /// 注册 App 生命周期监听，后台时自动暂停节拍器
+  /// 注册 App 生命周期监听，后台时自动暂停节拍
   void attachLifecycleObserver() {
     _lifecycleObserver?.dispose();
     _lifecycleObserver = AppLifecycleObserver(

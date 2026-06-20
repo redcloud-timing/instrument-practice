@@ -8,7 +8,7 @@ class DocumentLibraryException implements Exception {
   final String message;
 }
 
-/// 文档资料库原生服务
+/// 乐谱库原生服务
 ///
 /// 通过 MethodChannel 调用原生文件选择器，支持 PDF 和图片的导入、删除。
 class DocumentLibraryService {
@@ -31,7 +31,7 @@ class DocumentLibraryService {
         openedAtIso: now,
       );
     } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '选择资料失败。');
+      throw DocumentLibraryException(error.message ?? '选择乐谱失败。');
     }
   }
 
@@ -73,7 +73,7 @@ class DocumentLibraryService {
     try {
       await _channel.invokeMethod<void>('deleteItem', {'uri': item.uri});
     } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '删除资料失败。');
+      throw DocumentLibraryException(error.message ?? '删除乐谱失败。');
     }
   }
 
@@ -84,7 +84,7 @@ class DocumentLibraryService {
         'mimeType': item.mimeType,
       });
     } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '打开资料失败。');
+      throw DocumentLibraryException(error.message ?? '打开乐谱失败。');
     }
   }
 

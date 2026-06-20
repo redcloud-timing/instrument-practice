@@ -4,7 +4,7 @@ import '../models/metronome_preset.dart';
 
 enum MetronomeSoundRole { downbeat, upbeat, subdivision, rest }
 
-/// 节拍器音效服务
+/// 节拍音效服务
 ///
 /// 通过 MethodChannel 调用原生音频播放，支持多种音效风格和震动反馈。
 class MetronomeSoundService {

@@ -26,7 +26,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => TextEditScreen(
-          title: '资料笔记',
+          title: '乐谱笔记',
           initialText: item.note,
           hintText: '写下指法、节奏、换气或练习提醒',
         ),
@@ -50,7 +50,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (defaultPackage != null && defaultPackage.isNotEmpty) {
         // 有默认应用，直接打开
         await docService.openWithSpecificApp(item, defaultPackage);
-        // 自动返回「资料」界面
+        // 自动返回「乐谱」界面
         if (mounted) {
           Navigator.pop(context);
         }
@@ -157,7 +157,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       await dbService.setSetting('default_pdf_viewer', packageName);
       // 打开 PDF
       await docService.openWithSpecificApp(item, packageName);
-      // 自动返回「资料」界面
+      // 自动返回「乐谱」界面
       if (mounted) {
         Navigator.pop(context);
       }
@@ -171,8 +171,8 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
     if (item == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('资料')),
-        body: const Center(child: Text('资料已被移除')),
+        appBar: AppBar(title: const Text('乐谱')),
+        body: const Center(child: Text('乐谱已被移除')),
       );
     }
 
@@ -194,7 +194,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
             icon: const Icon(Icons.open_in_new),
           ),
           IconButton(
-            tooltip: '资料笔记',
+            tooltip: '乐谱笔记',
             onPressed: () => _editNote(context, item),
             icon: Icon(
               item.note.trim().isNotEmpty
@@ -260,7 +260,7 @@ class _DocumentBody extends StatelessWidget {
       return _ImageReader(item: item);
     }
 
-    return const Center(child: Text('暂不支持这种资料格式'));
+    return const Center(child: Text('暂不支持这种乐谱格式'));
   }
 }
 
