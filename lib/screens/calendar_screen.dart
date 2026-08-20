@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../controllers/practice_controller.dart';
+import '../routes/app_routes.dart';
 import '../utils/app_date_utils.dart';
-import 'day_detail_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -19,12 +19,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
   void _openDetail(BuildContext context) {
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (_) =>
-            DayDetailScreen(date: AppDateUtils.dateOnly(_selectedDay)),
-      ),
+      AppRoutes.dayDetail,
+      arguments: AppDateUtils.dateOnly(_selectedDay),
     );
   }
 

@@ -32,7 +32,7 @@ void main() {
     });
 
     test('toMap 与 fromMap 对称', () {
-      final original = PracticeLog(
+      const original = PracticeLog(
         id: 42,
         practiceDate: '2026-06-15',
         durationSeconds: 3600,

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../models/metronome_preset.dart';
 import '../services/database_service.dart';
 import '../services/metronome_sound_service.dart';
+import '../utils/app_constants.dart';
 import '../utils/app_lifecycle_observer.dart';
 
 /// 节拍控制器
@@ -27,13 +28,13 @@ class MetronomeController extends ChangeNotifier {
   final DatabaseService _databaseService;
   final MetronomeSoundService _soundService;
 
-  static const int minBpm = 10;
-  static const int maxBpm = 600;
-  static const int minBeatsPerBar = 1;
-  static const int maxBeatsPerBar = 8;
-  static const int maxSubdivisionDotsPerBeat = 4;
-  static const _settingsKey = 'metronome_settings_v4';
-  static const customPresetName = '自定义';
+  static const int minBpm = AppConstants.minBpm;
+  static const int maxBpm = AppConstants.maxBpm;
+  static const int minBeatsPerBar = AppConstants.minBeatsPerBar;
+  static const int maxBeatsPerBar = AppConstants.maxBeatsPerBar;
+  static const int maxSubdivisionDotsPerBeat =
+      AppConstants.maxSubdivisionDotsPerBeat;
+  static const customPresetName = AppConstants.customPresetName;
 
   bool isLoading = true;
   bool isRunning = false;
@@ -98,7 +99,9 @@ class MetronomeController extends ChangeNotifier {
   }
 
   Future<void> init() async {
-    final rawSettings = await _databaseService.getSetting(_settingsKey);
+    final rawSettings = await _databaseService.getSetting(
+      AppConstants.metronomeSettingsKey,
+    );
 
     if (rawSettings != null) {
       try {
@@ -572,7 +575,10 @@ class MetronomeController extends ChangeNotifier {
       'vibrationEnabled': vibrationEnabled,
     };
 
-    await _databaseService.setSetting(_settingsKey, jsonEncode(map));
+    await _databaseService.setSetting(
+      AppConstants.metronomeSettingsKey,
+      jsonEncode(map),
+    );
   }
 
   static List<List<BeatType>> _copySubdivisionPatterns(

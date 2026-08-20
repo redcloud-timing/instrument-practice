@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../controllers/pitch_trace_controller.dart';
 import '../../models/pitch_trace_recording.dart';
-import '../text_edit_screen.dart';
+import '../../routes/app_routes.dart';
 
 enum _RecordingAction { rename, note, delete }
 
@@ -177,18 +177,15 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
     final initialTitle = recording.title.trim().isEmpty
         ? recording.name.replaceAll('.wav', '')
         : recording.title;
-    final result = await Navigator.push<String>(
+    final result = await Navigator.pushNamed<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TextEditScreen(
-          title: '重命名录音',
-          initialText: initialTitle,
-          hintText: '输入录音名称',
-          minLines: 1,
-          maxLines: 1,
-          textInputAction: TextInputAction.done,
-          selectAllOnOpen: true,
-        ),
+      AppRoutes.textEdit,
+      arguments: TextEditRouteArguments(
+        title: '重命名录音',
+        initialText: initialTitle,
+        hintText: '输入录音名称',
+        selectAllOnOpen: true,
+        singleLine: true,
       ),
     );
 
@@ -211,14 +208,13 @@ class _RecordingsListSheetState extends State<RecordingsListSheet> {
     PitchTraceRecording recording,
   ) async {
     final controller = context.read<PitchTraceController>();
-    final result = await Navigator.push<String>(
+    final result = await Navigator.pushNamed<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TextEditScreen(
-          title: '录音备注',
-          initialText: recording.note,
-          hintText: '写下音高变化、气息、尾音或老师提醒',
-        ),
+      AppRoutes.textEdit,
+      arguments: TextEditRouteArguments(
+        title: '录音备注',
+        initialText: recording.note,
+        hintText: '写下音高变化、气息、尾音或老师提醒',
       ),
     );
 

@@ -730,49 +730,49 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
       ),
       child: DefaultTextStyle(
         style: bodyStyle.copyWith(color: textColor),
-        child: Column(
+        child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── 颜色阈值说明 ──
-            const Text('颜色阈值', style: sectionStyle),
-            const SizedBox(height: 8),
-            const Text(
+            Text('颜色阈值', style: sectionStyle),
+            SizedBox(height: 8),
+            Text(
               '轨迹颜色基于音分偏差（cent）着色。音分是衡量音高偏差的'
               '对数单位：1 个半音 = 100 音分。',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '• 绿色（±N¢）：偏差在此范围内视为音准良好，轨迹显示绿色。\n'
               '• 黄色（±M¢）：偏差超过绿色阈值但未超过黄色阈值，显示黄色。\n'
               '• 红色：偏差超过黄色阈值，显示红色，提示需要调整。',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '阈值含义举例：\n'
               '• ±5¢ ≈ 非常严格的音准，接近专业演奏水平\n'
               '• ±10¢ ≈ 良好的音准，适合日常练习\n'
               '• ±15¢ ≈ 宽松的音准，初学者适用\n'
               '• ±25¢ ≈ 半个四分之一音，非常宽松',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '绿色阈值范围 1~20¢，黄色阈值范围 5~40¢。'
               '系统会自动保证黄色阈值大于绿色阈值。',
             ),
 
-            const SizedBox(height: 20),
-            const Divider(height: 1),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
+            Divider(height: 1),
+            SizedBox(height: 20),
 
             // ── 检测精度说明 ──
-            const Text('检测精度', style: sectionStyle),
-            const SizedBox(height: 8),
-            const Text(
+            Text('检测精度', style: sectionStyle),
+            SizedBox(height: 8),
+            Text(
               '音高检测使用 YIN 算法（一种自相关基频检测算法）。'
               '算法每次分析一段音频"窗口"，计算其中的基频。',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '窗口大小（样本数）\n'
               '决定每次分析的音频时长。44100 Hz 采样率下：\n'
               '• 1024 ≈ 23ms → 约 43 次/秒，适合高音，低音精度下降\n'
@@ -780,8 +780,8 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
               '• 4096 ≈ 93ms → 约 11 次/秒，低音检测精度高\n'
               '• 8192 ≈ 186ms → 约 5 次/秒，最高精度但采样稀疏',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '为什么窗口大小影响低音精度？\n'
               'YIN 算法需要至少 2 个完整周期的波形才能准确检测基频。'
               '低音频率低、周期长，需要更大的窗口才能容纳足够周期。\n'
@@ -789,8 +789,8 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
               '~12 个周期，精度充足。但 C2（65Hz）周期约 15ms，'
               '2048 窗口仅容纳 ~3 个周期，可能不够稳定。',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '重叠比例\n'
               '分析窗口之间的重叠程度。50% 重叠意味着每次前进窗口一半的'
               '距离就开始下一次分析，采样密度翻倍但不改变单次分析精度。\n'
@@ -798,8 +798,8 @@ class _PitchTraceSettingsScreenState extends State<PitchTraceSettingsScreen> {
               '• 50%：默认，每次前进半个窗口，采样密度 ×2\n'
               '• 75%：高重叠，每次前进 1/4 窗口，采样密度 ×4',
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'CPU 负载：YIN 算法复杂度 O(n²)，n 为窗口大小。'
               '1024 窗口的计算量约为 4096 的 1/16。'
               '重叠比例增加会线性增加计算频率，但对现代手机影响很小。\n\n'

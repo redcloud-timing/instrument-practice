@@ -12,12 +12,6 @@ class AppConstants {
   /// 练习计时器状态存储键
   static const timerStartKey = 'active_timer_start_iso';
 
-  /// 花朵成长状态存储键
-  static const flowerStateKey = 'flower_state_v1';
-
-  /// 花朵成长日期存储键
-  static const flowerDateKey = 'flower_state_date';
-
   /// 首页练习图片存储键
   static const homePracticeImageKey = 'home_practice_image_v1';
 
@@ -29,12 +23,6 @@ class AppConstants {
 
   /// 练习笔记字号存储键
   static const practiceNoteFontSizeKey = 'practice_note_font_size';
-
-  /// 花朵最大成长阶段
-  static const maxFlowerGrowthStage = 5;
-
-  /// 交互点击次数阈值（浇水/听音乐达到此值触发成长）
-  static const maxInteractionClicks = 3;
 
   // ── 字号范围 ──────────────────────────────────────────
   static const minFontSize = 14.0;
@@ -99,6 +87,18 @@ class AppConstants {
   /// 资料库最大条目数
   static const maxLibraryItems = 60;
 
+  /// “全部”栏目的排序位置
+  static const allCategorySortOrderKey = 'category_all_sort_order';
+
+  /// 默认 PDF 阅读器
+  static const defaultPdfViewerKey = 'default_pdf_viewer';
+
+  // ── 主题 ────────────────────────────────────────────
+  static const themeColorKey = 'theme_color';
+  static const themeModeKey = 'theme_mode';
+  static const themeAmbienceKey = 'theme_ambience';
+  static const imageRevealStyleKey = 'image_reveal_style';
+
   // ── 参考音高 ──────────────────────────────────────────
   /// 默认 A4 参考频率 (Hz)
   static const defaultReferenceA4Hz = 440.0;
@@ -112,4 +112,7 @@ class AppConstants {
   // ── 数据库 ────────────────────────────────────────────
   /// 数据库文件名
   static const databaseName = 'flute_practice.db';
+
+  /// SQLite 结构版本
+  static const databaseVersion = 3;
 }

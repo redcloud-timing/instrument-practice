@@ -6,6 +6,7 @@ import 'package:flute_practice/services/pitch_trace_service.dart';
 
 class MockPitchTraceService implements PitchTraceService {
   final _controller = StreamController<PitchReading>.broadcast();
+  final _playbackCompleteController = StreamController<void>.broadcast();
   bool isStarted = false;
   String? stoppedPath;
 
@@ -13,9 +14,14 @@ class MockPitchTraceService implements PitchTraceService {
   Stream<PitchReading> get readings => _controller.stream;
 
   @override
+  Stream<void> get onPlaybackComplete => _playbackCompleteController.stream;
+
+  @override
   Future<void> start({
     required double minFrequency,
     required double maxFrequency,
+    int windowSize = 2048,
+    double overlapRatio = 0.5,
   }) async {
     isStarted = true;
   }
@@ -34,7 +40,9 @@ class MockPitchTraceService implements PitchTraceService {
   Future<void> deleteRecording(String path) async {}
 
   @override
-  Future<String?> playRecording(String path) async => null;
+  Future<Map<String, dynamic>?> playRecording(String path) async {
+    return {'name': 'mock.wav', 'durationMs': 1000};
+  }
 
   @override
   Future<void> stopPlayback() async {}
@@ -59,7 +67,9 @@ class MockPitchTraceService implements PitchTraceService {
     _controller.add(reading);
   }
 
+  @override
   void dispose() {
     _controller.close();
+    _playbackCompleteController.close();
   }
 }

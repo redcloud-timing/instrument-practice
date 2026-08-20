@@ -81,13 +81,13 @@ void main() {
   });
 
   group('每日阅读', () {
-    test('dailyRead 默认为空', () {
-      expect(controller.dailyRead, equals(''));
+    test('dailyRead 使用默认提醒并自动缩进', () {
+      expect(controller.dailyRead, startsWith('　　练习前先放松肩颈'));
     });
 
     test('saveDailyRead 保存文本', () async {
       await controller.saveDailyRead('今日练习：长音训练');
-      expect(controller.dailyRead, equals('今日练习：长音训练'));
+      expect(controller.dailyRead, equals('　　今日练习：长音训练'));
 
       final saved = await mockDb.getSetting('daily_read');
       expect(saved, isNotNull);

@@ -16,20 +16,25 @@ class DocumentLibraryService {
     'flute_practice/documents',
   );
 
-  Future<LibraryItem?> pickDocument() async {
+  /// 选择乐谱文件（支持多选）
+  Future<List<LibraryItem>> pickDocuments() async {
     try {
-      final result = await _channel.invokeMethod<Object?>('pickDocument');
-      if (result == null) return null;
-      if (result is! Map) {
-        throw const DocumentLibraryException('无法读取所选文件信息。');
-      }
+      final result = await _channel.invokeMethod<List<dynamic>?>(
+        'pickDocument',
+      );
+      if (result == null || result.isEmpty) return [];
 
       final now = DateTime.now().toIso8601String();
-      return LibraryItem.fromPickedMap(
-        Map<Object?, Object?>.from(result),
-        addedAtIso: now,
-        openedAtIso: now,
-      );
+      return result.map((item) {
+        if (item is! Map) {
+          throw const DocumentLibraryException('无法读取所选文件信息。');
+        }
+        return LibraryItem.fromPickedMap(
+          Map<Object?, Object?>.from(item),
+          addedAtIso: now,
+          openedAtIso: now,
+        );
+      }).toList();
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '选择乐谱失败。');
     }
@@ -66,25 +71,6 @@ class DocumentLibraryService {
       return result;
     } on PlatformException catch (error) {
       throw DocumentLibraryException(error.message ?? '读取图片失败。');
-    }
-  }
-
-  Future<void> deleteItem(LibraryItem item) async {
-    try {
-      await _channel.invokeMethod<void>('deleteItem', {'uri': item.uri});
-    } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '删除乐谱失败。');
-    }
-  }
-
-  Future<void> openDocument(LibraryItem item) async {
-    try {
-      await _channel.invokeMethod<void>('openDocument', {
-        'uri': item.uri,
-        'mimeType': item.mimeType,
-      });
-    } on PlatformException catch (error) {
-      throw DocumentLibraryException(error.message ?? '打开乐谱失败。');
     }
   }
 

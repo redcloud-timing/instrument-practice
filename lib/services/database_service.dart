@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/category.dart';
 import '../models/practice_log.dart';
+import '../utils/app_constants.dart';
 
 /// 数据库服务
 ///
@@ -15,11 +16,11 @@ class DatabaseService {
     if (_database != null) return;
 
     final databasesPath = await getDatabasesPath();
-    final databasePath = p.join(databasesPath, 'flute_practice.db');
+    final databasePath = p.join(databasesPath, AppConstants.databaseName);
 
     _database = await openDatabase(
       databasePath,
-      version: 3,
+      version: AppConstants.databaseVersion,
       onCreate: (db, version) async {
         await _createTables(db);
       },

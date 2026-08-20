@@ -149,7 +149,7 @@ class BeatShapePainter extends CustomPainter {
       const margin = 3.0;
       canvas.drawLine(
         Offset(margin, size.height - margin),
-        Offset(margin, margin),
+        const Offset(margin, margin),
         paint,
       );
       canvas.drawLine(

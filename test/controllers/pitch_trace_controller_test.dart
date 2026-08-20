@@ -50,20 +50,20 @@ void main() {
       await controller.start();
       expect(controller.isRunning, isTrue);
       expect(mockPitchService.isStarted, isTrue);
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
 
     test('stop 停止原生服务', () async {
       await controller.start();
       await controller.stop();
       expect(controller.isRunning, isFalse);
       expect(mockPitchService.isStarted, isFalse);
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
 
     test('重复 start 不报错', () async {
       await controller.start();
       await controller.start();
       expect(controller.isRunning, isTrue);
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
   });
 
   group('频率范围设置', () {
@@ -75,14 +75,18 @@ void main() {
 
     test('setFrequencyRange 限制最小边界', () {
       controller.setFrequencyRange(10.0, 2000.0);
-      expect(controller.minFrequency,
-          equals(PitchTraceController.minAllowedFrequency));
+      expect(
+        controller.minFrequency,
+        equals(PitchTraceController.minAllowedFrequency),
+      );
     });
 
     test('setFrequencyRange 限制最大边界', () {
       controller.setFrequencyRange(100.0, 5000.0);
-      expect(controller.maxFrequency,
-          equals(PitchTraceController.maxAllowedFrequency));
+      expect(
+        controller.maxFrequency,
+        equals(PitchTraceController.maxAllowedFrequency),
+      );
     });
 
     test('resetFrequencyRange 恢复默认值', () {

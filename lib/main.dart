@@ -9,11 +9,11 @@ import 'controllers/metronome_controller.dart';
 import 'controllers/practice_controller.dart';
 import 'controllers/library_controller.dart';
 import 'routes/app_router.dart';
+import 'routes/app_routes.dart';
 import 'screens/home_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/metronome_screen.dart';
 import 'screens/pitch_trace_screen.dart';
-import 'screens/theme_settings_screen.dart';
 import 'services/database_service.dart';
 import 'services/document_library_service.dart';
 import 'services/metronome_sound_service.dart';
@@ -271,12 +271,7 @@ class _MainShellState extends State<MainShell> {
                         );
                         break;
                       case 'theme':
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ThemeSettingsScreen(),
-                          ),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.themeSettings);
                         break;
                     }
                   },

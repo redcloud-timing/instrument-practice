@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../utils/app_constants.dart';
+
 const noteNames = [
   'C',
   'C#',
@@ -15,7 +17,7 @@ const noteNames = [
   'B',
 ];
 
-const defaultReferenceA4Hz = 440.0;
+const defaultReferenceA4Hz = AppConstants.defaultReferenceA4Hz;
 
 /// 音高读数
 ///

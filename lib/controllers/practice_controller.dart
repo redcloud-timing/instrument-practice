@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/library_item.dart';
 import '../models/practice_log.dart';
 import '../services/database_service.dart';
+import '../utils/app_constants.dart';
 import '../utils/app_date_utils.dart';
 
 /// 练习记录管理控制器
@@ -23,35 +24,17 @@ class PracticeController extends ChangeNotifier {
 
   final DatabaseService _databaseService;
 
-  static const _dailyReadKey = 'daily_read';
-  static const _dailyReadFontSizeKey = 'daily_read_font_size';
-  static const _practiceNoteFontSizeKey = 'practice_note_font_size';
-  static const dailyReadMinFontSize = 14.0;
-  static const dailyReadMaxFontSize = 24.0;
-  static const dailyReadDefaultFontSize = 16.0;
-  static const dailyReadFirstLineIndent = '　　';
-  static const practiceNoteMinFontSize = 14.0;
-  static const practiceNoteMaxFontSize = 24.0;
-  static const practiceNoteDefaultFontSize = 16.0;
-  static const practiceNoteFirstLineIndent = '　　';
-  static const _timerStartKey = 'active_timer_start_iso';
-  static const _flowerStateKey = 'flower_state_v1';
-  static const _flowerDateKey = 'flower_state_date';
-  static const _homePracticeImageKey = 'home_practice_image_v1';
-  static const _maxFlowerGrowthStage = 5;
-  static const _maxInteractionClicks = 3;
+  static const dailyReadMinFontSize = AppConstants.minFontSize;
+  static const dailyReadMaxFontSize = AppConstants.maxFontSize;
+  static const dailyReadDefaultFontSize = AppConstants.defaultFontSize;
+  static const dailyReadFirstLineIndent = AppConstants.firstLineIndent;
+  static const practiceNoteMinFontSize = AppConstants.minFontSize;
+  static const practiceNoteMaxFontSize = AppConstants.maxFontSize;
+  static const practiceNoteDefaultFontSize = AppConstants.defaultFontSize;
+  static const practiceNoteFirstLineIndent = AppConstants.firstLineIndent;
 
   bool isLoading = true;
 
-  int _flowerGrowthStage = 0;
-  int _musicClicks = 0;
-  int _waterClicks = 0;
-  int _sunClicks = 0;
-
-  int get flowerGrowthStage => _flowerGrowthStage;
-  int get musicClicks => _musicClicks;
-  int get waterClicks => _waterClicks;
-  int get sunClicks => _sunClicks;
   String dailyRead = '';
   double dailyReadFontSize = dailyReadDefaultFontSize;
   double practiceNoteFontSize = practiceNoteDefaultFontSize;
@@ -116,18 +99,20 @@ class PracticeController extends ChangeNotifier {
     notifyListeners();
 
     dailyRead = _normalizeDailyRead(
-      await _databaseService.getSetting(_dailyReadKey) ??
+      await _databaseService.getSetting(AppConstants.dailyReadKey) ??
           '练习前先放松肩颈，确认气息稳定。慢练优先，音色优先，速度最后再加。',
     );
 
     dailyReadFontSize = _readDailyReadFontSize(
-      await _databaseService.getSetting(_dailyReadFontSizeKey),
+      await _databaseService.getSetting(AppConstants.dailyReadFontSizeKey),
     );
     practiceNoteFontSize = _readPracticeNoteFontSize(
-      await _databaseService.getSetting(_practiceNoteFontSizeKey),
+      await _databaseService.getSetting(AppConstants.practiceNoteFontSizeKey),
     );
 
-    final timerIso = await _databaseService.getSetting(_timerStartKey);
+    final timerIso = await _databaseService.getSetting(
+      AppConstants.timerStartKey,
+    );
     final parsedTimerStart = timerIso == null
         ? null
         : DateTime.tryParse(timerIso);
@@ -136,10 +121,9 @@ class PracticeController extends ChangeNotifier {
       activeTimerStart = parsedTimerStart;
       _startTicker();
     } else if (timerIso != null) {
-      await _databaseService.deleteSetting(_timerStartKey);
+      await _databaseService.deleteSetting(AppConstants.timerStartKey);
     }
 
-    await _loadFlowerState();
     await _loadHomePracticeImage();
 
     logs = await _databaseService.getAllLogs();
@@ -172,7 +156,7 @@ class PracticeController extends ChangeNotifier {
     while (_pendingDailyReadToSave != null) {
       final text = _pendingDailyReadToSave!;
       _pendingDailyReadToSave = null;
-      await _databaseService.setSetting(_dailyReadKey, text);
+      await _databaseService.setSetting(AppConstants.dailyReadKey, text);
     }
 
     _dailyReadPersisting = null;
@@ -190,7 +174,7 @@ class PracticeController extends ChangeNotifier {
     notifyListeners();
 
     await _databaseService.setSetting(
-      _dailyReadFontSizeKey,
+      AppConstants.dailyReadFontSizeKey,
       nextSize.toStringAsFixed(0),
     );
   }
@@ -207,7 +191,7 @@ class PracticeController extends ChangeNotifier {
     notifyListeners();
 
     await _databaseService.setSetting(
-      _practiceNoteFontSizeKey,
+      AppConstants.practiceNoteFontSizeKey,
       nextSize.toStringAsFixed(0),
     );
   }
@@ -216,7 +200,7 @@ class PracticeController extends ChangeNotifier {
     if (!item.isImage) return;
     homePracticeImage = item;
     await _databaseService.setSetting(
-      _homePracticeImageKey,
+      AppConstants.homePracticeImageKey,
       jsonEncode(item.toMap()),
     );
     notifyListeners();
@@ -224,7 +208,7 @@ class PracticeController extends ChangeNotifier {
 
   Future<void> clearHomePracticeImage() async {
     homePracticeImage = null;
-    await _databaseService.deleteSetting(_homePracticeImageKey);
+    await _databaseService.deleteSetting(AppConstants.homePracticeImageKey);
     notifyListeners();
   }
 
@@ -244,77 +228,10 @@ class PracticeController extends ChangeNotifier {
     await reloadLogs();
   }
 
-  void clickMusic() {
-    if (_musicClicks >= _maxInteractionClicks) return;
-    _musicClicks++;
-    _checkFlowerGrowth();
-    _saveFlowerState();
-    notifyListeners();
-  }
-
-  void clickWater() {
-    if (_waterClicks >= _maxInteractionClicks) return;
-    _waterClicks++;
-    _checkFlowerGrowth();
-    _saveFlowerState();
-    notifyListeners();
-  }
-
-  void clickSun() {
-    if (_sunClicks >= _maxInteractionClicks) return;
-    _sunClicks++;
-    _checkFlowerGrowth();
-    _saveFlowerState();
-    notifyListeners();
-  }
-
-  void _checkFlowerGrowth() {
-    if (_musicClicks >= _maxInteractionClicks &&
-        _waterClicks >= _maxInteractionClicks &&
-        _sunClicks >= _maxInteractionClicks &&
-        _flowerGrowthStage < _maxFlowerGrowthStage) {
-      _flowerGrowthStage++;
-      _musicClicks = 0;
-      _waterClicks = 0;
-      _sunClicks = 0;
-    }
-  }
-
-  Future<void> _loadFlowerState() async {
-    final today = AppDateUtils.dateKey(DateTime.now());
-    final savedDate = await _databaseService.getSetting(_flowerDateKey);
-
-    if (savedDate != today) {
-      _flowerGrowthStage = 0;
-      _musicClicks = 0;
-      _waterClicks = 0;
-      _sunClicks = 0;
-      await _saveFlowerState();
-      return;
-    }
-
-    final json = await _databaseService.getSetting(_flowerStateKey);
-    if (json != null && json.isNotEmpty) {
-      try {
-        final map = jsonDecode(json) as Map<String, dynamic>;
-        _flowerGrowthStage = ((map['stage'] as int?) ?? 0)
-            .clamp(0, _maxFlowerGrowthStage)
-            .toInt();
-        _musicClicks = ((map['music'] as int?) ?? 0)
-            .clamp(0, _maxInteractionClicks)
-            .toInt();
-        _waterClicks = ((map['water'] as int?) ?? 0)
-            .clamp(0, _maxInteractionClicks)
-            .toInt();
-        _sunClicks = ((map['sun'] as int?) ?? 0)
-            .clamp(0, _maxInteractionClicks)
-            .toInt();
-      } catch (_) {}
-    }
-  }
-
   Future<void> _loadHomePracticeImage() async {
-    final json = await _databaseService.getSetting(_homePracticeImageKey);
+    final json = await _databaseService.getSetting(
+      AppConstants.homePracticeImageKey,
+    );
     if (json == null || json.isEmpty) return;
 
     try {
@@ -328,20 +245,6 @@ class PracticeController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _saveFlowerState() async {
-    final data = jsonEncode({
-      'stage': _flowerGrowthStage,
-      'music': _musicClicks,
-      'water': _waterClicks,
-      'sun': _sunClicks,
-    });
-    await _databaseService.setSetting(_flowerStateKey, data);
-    await _databaseService.setSetting(
-      _flowerDateKey,
-      AppDateUtils.dateKey(DateTime.now()),
-    );
-  }
-
   Future<void> startTimer() async {
     if (activeTimerStart != null) return;
 
@@ -349,7 +252,7 @@ class PracticeController extends ChangeNotifier {
     elapsedSeconds = 0;
 
     await _databaseService.setSetting(
-      _timerStartKey,
+      AppConstants.timerStartKey,
       activeTimerStart!.toIso8601String(),
     );
 
@@ -369,7 +272,7 @@ class PracticeController extends ChangeNotifier {
     elapsedSeconds = 0;
     _ticker?.cancel();
 
-    await _databaseService.deleteSetting(_timerStartKey);
+    await _databaseService.deleteSetting(AppConstants.timerStartKey);
     await _databaseService.addDurationToDate(
       practiceDate: practiceDate,
       addedSeconds: savedSeconds,

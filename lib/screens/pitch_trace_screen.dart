@@ -6,9 +6,9 @@ import 'package:provider/provider.dart';
 import '../controllers/pitch_trace_controller.dart';
 import '../models/pitch_reading.dart';
 import '../models/pitch_trace_recording.dart';
+import '../routes/app_routes.dart';
 import 'pitch_trace/pitch_canvas.dart';
 import 'pitch_trace/recordings_sheet.dart';
-import 'pitch_trace/pitch_trace_settings_screen.dart';
 
 class PitchCanvasColors {
   const PitchCanvasColors({
@@ -579,10 +579,7 @@ class _PitchTraceScreenState extends State<PitchTraceScreen> {
   }
 
   void _openSettings(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PitchTraceSettingsScreen()),
-    );
+    Navigator.pushNamed(context, AppRoutes.pitchTraceSettings);
   }
 
   void _showRecordingsList(BuildContext context) {

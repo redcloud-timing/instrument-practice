@@ -155,7 +155,7 @@ class TimeAxisPainter extends CustomPainter {
     final leftEdge = cursor - visibleDurationMs;
 
     canvas.drawLine(
-      Offset(noteMargin, 0),
+      const Offset(noteMargin, 0),
       Offset(w, 0),
       Paint()
         ..color = colors.separator
@@ -422,7 +422,7 @@ class PitchCanvasPainter extends CustomPainter {
     }
 
     canvas.drawLine(
-      Offset(noteMargin, 0),
+      const Offset(noteMargin, 0),
       Offset(noteMargin, h),
       Paint()
         ..color = colors.separator

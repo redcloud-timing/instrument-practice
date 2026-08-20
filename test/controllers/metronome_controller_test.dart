@@ -47,17 +47,17 @@ void main() {
     test('setBpm 设置有效值', () {
       controller.setBpm(120);
       expect(controller.bpm, equals(120));
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
 
     test('setBpm 限制最小值', () {
       controller.setBpm(1);
       expect(controller.bpm, equals(MetronomeController.minBpm));
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
 
     test('setBpm 限制最大值', () {
       controller.setBpm(999);
       expect(controller.bpm, equals(MetronomeController.maxBpm));
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
   });
 
   group('节拍器启停', () {
@@ -77,25 +77,29 @@ void main() {
     test('setBeatCount 正确调整 beatPattern 长度', () {
       controller.setBeatCount(3);
       expect(controller.beatPattern.length, equals(3));
-    }, skip: true); // 需要原生 MethodChannel 环境
+    });
 
     test('setBeatCount 限制最小值', () {
       controller.setBeatCount(0);
-      expect(controller.beatPattern.length,
-          equals(MetronomeController.minBeatsPerBar));
-    }, skip: true); // 需要原生 MethodChannel 环境
+      expect(
+        controller.beatPattern.length,
+        equals(MetronomeController.minBeatsPerBar),
+      );
+    });
 
     test('setBeatCount 限制最大值', () {
       controller.setBeatCount(20);
-      expect(controller.beatPattern.length,
-          equals(MetronomeController.maxBeatsPerBar));
-    }, skip: true); // 需要原生 MethodChannel 环境
+      expect(
+        controller.beatPattern.length,
+        equals(MetronomeController.maxBeatsPerBar),
+      );
+    });
 
     test('cycleBeatAt 循环节拍类型', () {
-      final original = controller.beatPattern[0];
-      controller.cycleBeatAt(0);
-      expect(controller.beatPattern[0], equals(original.next));
-    }, skip: true); // 需要原生 MethodChannel 环境
+      final original = controller.beatPattern[1];
+      controller.cycleBeatAt(1);
+      expect(controller.beatPattern[1], equals(original.next));
+    });
   });
 
   group('预设管理', () {

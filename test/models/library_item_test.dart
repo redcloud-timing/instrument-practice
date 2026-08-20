@@ -10,7 +10,6 @@ void main() {
         mimeType: 'application/pdf',
         addedAtIso: '',
         openedAtIso: '',
-        isFavorite: false,
         note: '',
       );
       expect(item.isPdf, isTrue);
@@ -24,7 +23,6 @@ void main() {
         mimeType: 'image/png',
         addedAtIso: '',
         openedAtIso: '',
-        isFavorite: false,
         note: '',
       );
       expect(item.isImage, isTrue);
@@ -38,10 +36,8 @@ void main() {
         mimeType: 'application/pdf',
         addedAtIso: '2026-06-15T10:00:00',
         openedAtIso: '2026-06-15T11:00:00',
-        isFavorite: true,
         note: '重要',
         sizeBytes: 102400,
-        lastPageIndex: 3,
       );
 
       final restored = LibraryItem.fromMap(original.toMap());
@@ -49,21 +45,16 @@ void main() {
       expect(restored.uri, equals(original.uri));
       expect(restored.title, equals(original.title));
       expect(restored.mimeType, equals(original.mimeType));
-      expect(restored.isFavorite, isTrue);
+      expect(restored.note, equals('重要'));
       expect(restored.sizeBytes, equals(102400));
-      expect(restored.lastPageIndex, equals(3));
     });
 
     test('fromMap 缺失字段使用默认值', () {
-      final item = LibraryItem.fromMap({
-        'uri': 'file:///test.pdf',
-      });
+      final item = LibraryItem.fromMap({'uri': 'file:///test.pdf'});
 
-      expect(item.title, equals('未命名资料'));
+      expect(item.title, equals('未命名乐谱'));
       expect(item.mimeType, equals('application/pdf'));
-      expect(item.isFavorite, isFalse);
       expect(item.note, equals(''));
-      expect(item.lastPageIndex, equals(0));
     });
 
     test('copyWith 部分更新', () {
@@ -73,14 +64,13 @@ void main() {
         mimeType: 'application/pdf',
         addedAtIso: '',
         openedAtIso: '',
-        isFavorite: false,
         note: '',
       );
 
-      final updated = original.copyWith(title: '新名', isFavorite: true);
+      final updated = original.copyWith(title: '新名', note: '新笔记');
 
       expect(updated.title, equals('新名'));
-      expect(updated.isFavorite, isTrue);
+      expect(updated.note, equals('新笔记'));
       expect(updated.uri, equals(original.uri));
     });
 
@@ -91,7 +81,6 @@ void main() {
         mimeType: '',
         addedAtIso: '',
         openedAtIso: '',
-        isFavorite: false,
         note: '',
         sizeBytes: 512 * 1024,
       );
@@ -105,7 +94,6 @@ void main() {
         mimeType: '',
         addedAtIso: '',
         openedAtIso: '',
-        isFavorite: false,
         note: '',
         sizeBytes: 2 * 1024 * 1024,
       );
@@ -119,7 +107,6 @@ void main() {
         mimeType: '',
         addedAtIso: '',
         openedAtIso: '',
-        isFavorite: false,
         note: '',
       );
       expect(item.sizeLabel, equals(''));

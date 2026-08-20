@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/database_service.dart';
+import '../utils/app_constants.dart';
 
 enum PracticeImageRevealStyle { gentle, balanced, vivid }
 
@@ -278,10 +279,6 @@ class ThemeController extends ChangeNotifier {
   ThemeController(this._databaseService);
 
   final DatabaseService _databaseService;
-  static const _themeColorKey = 'theme_color';
-  static const _themeModeKey = 'theme_mode';
-  static const _themeAmbienceKey = 'theme_ambience';
-  static const _imageRevealStyleKey = 'image_reveal_style';
   static const Color defaultColor = Color(0xFF99FF99);
 
   Color _themeColor = defaultColor;
@@ -307,12 +304,16 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> init() async {
     final savedAmbienceId = await _databaseService.getSetting(
-      _themeAmbienceKey,
+      AppConstants.themeAmbienceKey,
     );
-    final savedColor = await _databaseService.getSetting(_themeColorKey);
-    final savedThemeMode = await _databaseService.getSetting(_themeModeKey);
+    final savedColor = await _databaseService.getSetting(
+      AppConstants.themeColorKey,
+    );
+    final savedThemeMode = await _databaseService.getSetting(
+      AppConstants.themeModeKey,
+    );
     final savedRevealStyle = await _databaseService.getSetting(
-      _imageRevealStyleKey,
+      AppConstants.imageRevealStyleKey,
     );
 
     final savedAmbience = ThemeAmbience.byId(savedAmbienceId);
@@ -344,9 +345,12 @@ class ThemeController extends ChangeNotifier {
 
     _ambienceId = selected.id;
     _themeColor = selected.seedColor;
-    await _databaseService.setSetting(_themeAmbienceKey, _ambienceId);
     await _databaseService.setSetting(
-      _themeColorKey,
+      AppConstants.themeAmbienceKey,
+      _ambienceId,
+    );
+    await _databaseService.setSetting(
+      AppConstants.themeColorKey,
       colorToString(_themeColor),
     );
     notifyListeners();
@@ -356,20 +360,29 @@ class ThemeController extends ChangeNotifier {
     final matchingAmbience = ThemeAmbience.matchingColor(color);
     _themeColor = color;
     _ambienceId = matchingAmbience?.id ?? ThemeAmbience.customId;
-    await _databaseService.setSetting(_themeAmbienceKey, _ambienceId);
-    await _databaseService.setSetting(_themeColorKey, colorToString(color));
+    await _databaseService.setSetting(
+      AppConstants.themeAmbienceKey,
+      _ambienceId,
+    );
+    await _databaseService.setSetting(
+      AppConstants.themeColorKey,
+      colorToString(color),
+    );
     notifyListeners();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
-    await _databaseService.setSetting(_themeModeKey, mode.name);
+    await _databaseService.setSetting(AppConstants.themeModeKey, mode.name);
     notifyListeners();
   }
 
   Future<void> setImageRevealStyle(PracticeImageRevealStyle style) async {
     _imageRevealStyle = style;
-    await _databaseService.setSetting(_imageRevealStyleKey, style.name);
+    await _databaseService.setSetting(
+      AppConstants.imageRevealStyleKey,
+      style.name,
+    );
     notifyListeners();
   }
 
@@ -380,14 +393,20 @@ class ThemeController extends ChangeNotifier {
     _themeMode = ThemeMode.system;
     _imageRevealStyle = PracticeImageRevealStyle.balanced;
 
-    await _databaseService.setSetting(_themeAmbienceKey, _ambienceId);
     await _databaseService.setSetting(
-      _themeColorKey,
+      AppConstants.themeAmbienceKey,
+      _ambienceId,
+    );
+    await _databaseService.setSetting(
+      AppConstants.themeColorKey,
       colorToString(_themeColor),
     );
-    await _databaseService.setSetting(_themeModeKey, _themeMode.name);
     await _databaseService.setSetting(
-      _imageRevealStyleKey,
+      AppConstants.themeModeKey,
+      _themeMode.name,
+    );
+    await _databaseService.setSetting(
+      AppConstants.imageRevealStyleKey,
       _imageRevealStyle.name,
     );
     notifyListeners();

@@ -6,11 +6,17 @@ import 'package:provider/provider.dart';
 import '../controllers/library_controller.dart';
 import '../models/category.dart';
 import '../models/library_item.dart';
+import '../routes/app_routes.dart';
 import '../services/database_service.dart';
-import 'document_viewer_screen.dart';
-import 'text_edit_screen.dart';
+import '../utils/app_constants.dart';
 
-enum _LibraryTileAction { rename, delete, addToCategory }
+enum _LibraryTileAction {
+  rename,
+  delete,
+  addToCategory,
+  note,
+  removeFromCategory,
+}
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -48,7 +54,9 @@ class _LibraryScreenState extends State<LibraryScreen>
     try {
       final dbService = context.read<DatabaseService>();
       final docService = context.read<LibraryController>().documentService;
-      final packageName = await dbService.getSetting('default_pdf_viewer');
+      final packageName = await dbService.getSetting(
+        AppConstants.defaultPdfViewerKey,
+      );
 
       if (packageName != null && packageName.isNotEmpty) {
         final iconBytes = await docService.getAppIcon(packageName);
@@ -117,11 +125,17 @@ class _LibraryScreenState extends State<LibraryScreen>
     final controller = context.read<LibraryController>();
 
     try {
-      final item = await controller.addDocumentFromDevice();
-      if (!context.mounted || item == null) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('已添加：${item.title}')));
+      final addedItems = await controller.addDocumentsFromDevice();
+      if (!context.mounted || addedItems.isEmpty) return;
+      if (addedItems.length == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已添加：${addedItems.first.title}')),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('已添加 ${addedItems.length} 首乐谱')));
+      }
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -132,24 +146,19 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   void _openItem(BuildContext context, LibraryItem item) {
     context.read<LibraryController>().markOpened(item);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DocumentViewerScreen(itemUri: item.uri),
-      ),
-    );
+    Navigator.pushNamed(context, AppRoutes.documentViewer, arguments: item.uri);
   }
 
   Future<void> _renameItem(BuildContext context, LibraryItem item) async {
-    final result = await Navigator.push<String>(
+    final result = await Navigator.pushNamed<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TextEditScreen(
-          title: '重命名乐谱',
-          initialText: item.title,
-          hintText: '输入新名称',
-          selectAllOnOpen: true,
-        ),
+      AppRoutes.textEdit,
+      arguments: TextEditRouteArguments(
+        title: '重命名乐谱',
+        initialText: item.title,
+        hintText: '输入新名称',
+        selectAllOnOpen: true,
+        singleLine: true,
       ),
     );
 
@@ -166,14 +175,13 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _editNote(BuildContext context, LibraryItem item) async {
-    final result = await Navigator.push<String>(
+    final result = await Navigator.pushNamed<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TextEditScreen(
-          title: '乐谱笔记',
-          initialText: item.note,
-          hintText: '写下指法、节奏、换气或练习提醒',
-        ),
+      AppRoutes.textEdit,
+      arguments: TextEditRouteArguments(
+        title: '乐谱笔记',
+        initialText: item.note,
+        hintText: '写下指法、节奏、换气或练习提醒',
       ),
     );
 
@@ -184,12 +192,13 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Future<void> _deleteItem(BuildContext context, LibraryItem item) async {
+    // 只有"全部"栏目下才显示彻底删除的确认对话框
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('移除乐谱'),
-          content: Text('从列表中移除「${item.title}」？'),
+          content: Text('从列表中移除「${item.title}」？\n\n将从所有栏目中删除此乐谱。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -206,6 +215,23 @@ class _LibraryScreenState extends State<LibraryScreen>
 
     if (confirmed != true || !context.mounted) return;
     await context.read<LibraryController>().deleteItem(item);
+  }
+
+  Future<void> _removeFromCurrentCategory(
+    BuildContext context,
+    LibraryItem item,
+  ) async {
+    if (_selectedCategoryId == null) return;
+    final controller = context.read<LibraryController>();
+
+    await controller.removeItemFromCategory(_selectedCategoryId!, item.uri);
+    _loadCategoryItems(_selectedCategoryId!);
+
+    if (!context.mounted) return;
+    final category = controller.categories.firstWhere(
+      (c) => c.id == _selectedCategoryId,
+    );
+    _showMessage(context, '已从「${category.name}」移除');
   }
 
   Future<void> _showAddToCategoryDialog(
@@ -265,26 +291,27 @@ class _LibraryScreenState extends State<LibraryScreen>
                         ),
                         title: Text(category.name),
                         onTap: () async {
+                          final message = isAdded
+                              ? '已从「${category.name}」移除'
+                              : '已添加到「${category.name}」';
                           if (isAdded) {
                             await controller.removeItemFromCategory(
                               category.id,
                               item.uri,
                             );
-                            _showMessage(context, '已从「${category.name}」移除');
                           } else {
                             await controller.addItemToCategory(
                               category.id,
                               item.uri,
                             );
-                            _showMessage(context, '已添加到「${category.name}」');
                           }
+                          if (!sheetContext.mounted) return;
+                          _showMessage(sheetContext, message);
                           // 刷新当前栏目筛选
                           if (_selectedCategoryId == category.id) {
                             _loadCategoryItems(category.id);
                           }
-                          if (sheetContext.mounted) {
-                            Navigator.pop(sheetContext);
-                          }
+                          Navigator.pop(sheetContext);
                         },
                       );
                     },
@@ -346,11 +373,6 @@ class _LibraryScreenState extends State<LibraryScreen>
         item.note.toLowerCase().contains(query);
   }
 
-  bool get _isFiltering {
-    return _selectedCategoryId != null ||
-        _searchController.text.trim().isNotEmpty;
-  }
-
   void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
@@ -371,7 +393,9 @@ class _LibraryScreenState extends State<LibraryScreen>
       return;
     }
 
-    final currentDefault = await dbService.getSetting('default_pdf_viewer');
+    final currentDefault = await dbService.getSetting(
+      AppConstants.defaultPdfViewerKey,
+    );
 
     // 获取每个应用的图标
     final appIcons = <String, Uint8List>{};
@@ -419,16 +443,16 @@ class _LibraryScreenState extends State<LibraryScreen>
                               )
                             : null,
                         onTap: () async {
-                          await dbService.setSetting('default_pdf_viewer', '');
-                          if (sheetContext.mounted) {
-                            Navigator.pop(sheetContext);
-                          }
-                          if (mounted) {
-                            setState(() {
-                              _defaultAppIcon = null;
-                            });
-                            _showMessage(context, '已清除默认应用');
-                          }
+                          await dbService.setSetting(
+                            AppConstants.defaultPdfViewerKey,
+                            '',
+                          );
+                          if (!sheetContext.mounted || !mounted) return;
+                          Navigator.pop(sheetContext);
+                          setState(() {
+                            _defaultAppIcon = null;
+                          });
+                          _showMessage(this.context, '已清除默认应用');
                         },
                       ),
                       for (final app in apps)
@@ -453,24 +477,21 @@ class _LibraryScreenState extends State<LibraryScreen>
                               : null,
                           onTap: () async {
                             await dbService.setSetting(
-                              'default_pdf_viewer',
+                              AppConstants.defaultPdfViewerKey,
                               app['packageName'] ?? '',
                             );
                             final iconBytes = await docService.getAppIcon(
                               app['packageName'] ?? '',
                             );
-                            if (sheetContext.mounted) {
-                              Navigator.pop(sheetContext);
-                            }
-                            if (mounted) {
-                              setState(() {
-                                _defaultAppIcon = iconBytes;
-                              });
-                              _showMessage(
-                                context,
-                                '已设置默认阅读器：${app['appName']}',
-                              );
-                            }
+                            if (!sheetContext.mounted || !mounted) return;
+                            Navigator.pop(sheetContext);
+                            setState(() {
+                              _defaultAppIcon = iconBytes;
+                            });
+                            _showMessage(
+                              this.context,
+                              '已设置默认阅读器：${app['appName']}',
+                            );
                           },
                         ),
                     ],
@@ -498,7 +519,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     final displayItems = _sortedDisplayItems.isNotEmpty
         ? _sortedDisplayItems
         : [
-            CategoryDisplayItem(id: null, name: '全部', sortOrder: -1),
+            const CategoryDisplayItem(id: null, name: '全部', sortOrder: -1),
             for (final cat in categories)
               CategoryDisplayItem(
                 id: cat.id,
@@ -710,7 +731,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     List<LibraryCategory> categories,
   ) {
     if (visibleItems.isEmpty) {
-      return const _EmptyLibrary(message: '暂无乐谱，点击上方「添加」导入');
+      final isFiltering =
+          _selectedCategoryId != null ||
+          _searchController.text.trim().isNotEmpty;
+      return _EmptyLibrary(
+        message: isFiltering ? '当前筛选项下暂无乐谱' : '暂无乐谱，点击上方「添加」导入',
+      );
     }
 
     return ListView.builder(
@@ -722,11 +748,13 @@ class _LibraryScreenState extends State<LibraryScreen>
           item: item,
           busy: controller.isBusy,
           categories: categories,
+          selectedCategoryId: _selectedCategoryId,
           onOpen: () => _openItem(context, item),
           onNote: () => _editNote(context, item),
           onRename: () => _renameItem(context, item),
           onDelete: () => _deleteItem(context, item),
           onAddToCategory: () => _showAddToCategoryDialog(context, item),
+          onRemoveFromCategory: () => _removeFromCurrentCategory(context, item),
         );
       },
     );
@@ -811,112 +839,137 @@ class _LibraryTile extends StatelessWidget {
     required this.item,
     required this.busy,
     required this.categories,
+    required this.selectedCategoryId,
     required this.onOpen,
     required this.onNote,
     required this.onRename,
     required this.onDelete,
     required this.onAddToCategory,
+    required this.onRemoveFromCategory,
   });
 
   final LibraryItem item;
   final bool busy;
   final List<LibraryCategory> categories;
+  final int? selectedCategoryId;
   final VoidCallback onOpen;
   final VoidCallback onNote;
   final VoidCallback onRename;
   final VoidCallback onDelete;
   final VoidCallback onAddToCategory;
+  final VoidCallback onRemoveFromCategory;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasNote = item.note.trim().isNotEmpty;
+    // 在具体栏目中：移除只从本栏目移除；在"全部"中：移除是彻底删除
+    final inCategory = selectedCategoryId != null;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
         onTap: onOpen,
+        contentPadding: const EdgeInsets.only(left: 8, right: 0),
+        visualDensity: VisualDensity.compact,
         leading: Container(
-          width: 40,
-          height: 40,
+          width: 30,
+          height: 30,
           decoration: BoxDecoration(
             color: item.isPdf
                 ? colorScheme.primaryContainer
                 : colorScheme.tertiaryContainer,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             item.isPdf ? Icons.picture_as_pdf : Icons.image,
             color: item.isPdf
                 ? colorScheme.onPrimaryContainer
                 : colorScheme.onTertiaryContainer,
-            size: 20,
+            size: 16,
           ),
         ),
-        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           '${item.sizeLabel} · ${item.openedAtLabel}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 笔记按钮（替代原来的收藏按钮）
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: onNote,
-                  icon: Icon(
+        trailing: PopupMenuButton<_LibraryTileAction>(
+          onSelected: (action) {
+            switch (action) {
+              case _LibraryTileAction.rename:
+                onRename();
+              case _LibraryTileAction.delete:
+                onDelete();
+              case _LibraryTileAction.addToCategory:
+                onAddToCategory();
+              case _LibraryTileAction.note:
+                onNote();
+              case _LibraryTileAction.removeFromCategory:
+                onRemoveFromCategory();
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: _LibraryTileAction.note,
+              child: Row(
+                children: [
+                  Icon(
                     hasNote ? Icons.note : Icons.note_add_outlined,
-                    color: hasNote ? colorScheme.primary : null,
                     size: 20,
+                    color: hasNote
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
                   ),
-                  tooltip: hasNote ? '查看笔记' : '添加笔记',
-                ),
-                if (hasNote)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
+                  const SizedBox(width: 12),
+                  Text(hasNote ? '查看笔记' : '添加笔记'),
+                ],
+              ),
             ),
-            PopupMenuButton<_LibraryTileAction>(
-              onSelected: (action) {
-                switch (action) {
-                  case _LibraryTileAction.rename:
-                    onRename();
-                  case _LibraryTileAction.delete:
-                    onDelete();
-                  case _LibraryTileAction.addToCategory:
-                    onAddToCategory();
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: _LibraryTileAction.rename,
-                  child: Text('重命名'),
+            const PopupMenuItem(
+              value: _LibraryTileAction.rename,
+              child: Row(
+                children: [
+                  Icon(Icons.edit_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('重命名'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: _LibraryTileAction.addToCategory,
+              child: Row(
+                children: [
+                  Icon(Icons.folder_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('添加到栏目'),
+                ],
+              ),
+            ),
+            if (inCategory)
+              const PopupMenuItem(
+                value: _LibraryTileAction.removeFromCategory,
+                child: Row(
+                  children: [
+                    Icon(Icons.folder_delete_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('从本栏目移除'),
+                  ],
                 ),
-                const PopupMenuItem(
-                  value: _LibraryTileAction.addToCategory,
-                  child: Text('添加到栏目'),
-                ),
-                const PopupMenuItem(
-                  value: _LibraryTileAction.delete,
-                  child: Text('移除'),
-                ),
-              ],
-              icon: const Icon(Icons.more_vert, size: 20),
+              ),
+            const PopupMenuItem(
+              value: _LibraryTileAction.delete,
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, size: 20),
+                  SizedBox(width: 12),
+                  Text('移除'),
+                ],
+              ),
             ),
           ],
+          icon: const Icon(Icons.more_vert, size: 20),
+          padding: EdgeInsets.zero,
         ),
       ),
     );
@@ -1002,6 +1055,7 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
     if (_movingUpIndex != -1) return; // 动画中
 
     final controller = context.read<LibraryController>();
+    final dbService = context.read<DatabaseService>();
 
     // 先获取需要交换的数据（在动画开始前）
     final item = _items[index];
@@ -1013,6 +1067,7 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
     final aboveOrder = aboveItem.isAll
         ? await controller.getAllCategorySortOrder()
         : aboveItem.category?.sortOrder ?? 0;
+    if (!mounted) return;
 
     // 启动动画
     setState(() {
@@ -1027,7 +1082,6 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
     if (item.isAll) {
       await controller.setAllCategorySortOrder(aboveOrder);
       if (aboveItem.category != null) {
-        final dbService = context.read<DatabaseService>();
         await dbService.updateCategorySortOrder(
           aboveItem.category!.id,
           itemOrder,
@@ -1035,10 +1089,8 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
       }
     } else if (aboveItem.isAll) {
       await controller.setAllCategorySortOrder(itemOrder);
-      final dbService = context.read<DatabaseService>();
       await dbService.updateCategorySortOrder(item.category!.id, aboveOrder);
     } else {
-      final dbService = context.read<DatabaseService>();
       await dbService.swapCategorySortOrder(
         item.category!.id,
         itemOrder,
@@ -1062,36 +1114,17 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
 
   Future<void> _renameCategory(LibraryCategory category) async {
     final controller = context.read<LibraryController>();
-    final TextEditingController nameController = TextEditingController(
-      text: category.name,
-    );
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('重命名栏目'),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: '输入新名称'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(dialogContext, name);
-              },
-              child: const Text('确定'),
-            ),
-          ],
-        );
-      },
+    final result = await Navigator.pushNamed<String>(
+      context,
+      AppRoutes.textEdit,
+      arguments: TextEditRouteArguments(
+        title: '重命名栏目',
+        initialText: category.name,
+        hintText: '输入新名称',
+        saveLabel: '确定',
+        selectAllOnOpen: true,
+        singleLine: true,
+      ),
     );
 
     if (result == null || !mounted) return;
@@ -1146,34 +1179,16 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
   }
 
   Future<void> _createCategory() async {
-    final TextEditingController nameController = TextEditingController();
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('创建新栏目'),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: '输入栏目名称'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(dialogContext, name);
-              },
-              child: const Text('创建'),
-            ),
-          ],
-        );
-      },
+    final result = await Navigator.pushNamed<String>(
+      context,
+      AppRoutes.textEdit,
+      arguments: const TextEditRouteArguments(
+        title: '创建新栏目',
+        initialText: '',
+        hintText: '输入栏目名称',
+        saveLabel: '创建',
+        singleLine: true,
+      ),
     );
 
     if (result == null || !mounted) return;
@@ -1193,7 +1208,7 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Text(
+              const Text(
                 '栏目管理',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -1236,7 +1251,7 @@ class _CategoryManageSheetState extends State<_CategoryManageSheet>
                   ),
                   child: ListTile(
                     leading: Icon(Icons.select_all, color: colorScheme.primary),
-                    title: Text(
+                    title: const Text(
                       '全部',
                       style: TextStyle(fontWeight: FontWeight.w500),
                     ),
@@ -1385,7 +1400,7 @@ class _SettingsIconPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final dotRadius = 2.0;
+    const dotRadius = 2.0;
     final dotX = size.width * 0.2;
     final lineStartX = size.width * 0.35;
     final lineEndX = size.width * 0.8;

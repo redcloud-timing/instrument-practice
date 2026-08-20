@@ -6,9 +6,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.pdf.PdfRenderer
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -25,7 +22,6 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,11 +50,6 @@ class MainActivity : FlutterActivity() {
     private var pitchTracker: PitchTracker? = null
     private var mediaPlayer: MediaPlayer? = null
     private var pitchTraceChannel: MethodChannel? = null
-
-    // PDF 渲染器缓存：打开一次文件，复用 renderer 渲染所有页面
-    private var cachedPdfUri: Uri? = null
-    private var cachedPdfRenderer: PdfRenderer? = null
-    private var cachedPdfDescriptor: android.os.ParcelFileDescriptor? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -107,25 +98,6 @@ class MainActivity : FlutterActivity() {
                     val uri = call.argument<String>("uri")
                     loadImage(uri, result)
                 }
-                "pdfPageCount" -> {
-                    val uri = call.argument<String>("uri")
-                    pdfPageCount(uri, result)
-                }
-                "renderPdfPage" -> {
-                    val uri = call.argument<String>("uri")
-                    val pageIndex = call.argument<Int>("pageIndex") ?: 0
-                    val maxWidth = call.argument<Int>("maxWidth") ?: 900
-                    renderPdfPage(uri, pageIndex, maxWidth, result)
-                }
-                "openDocument" -> {
-                    val uri = call.argument<String>("uri")
-                    val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
-                    openDocument(uri, mimeType, result)
-                }
-                "getPdfFilePath" -> {
-                    val uri = call.argument<String>("uri")
-                    getPdfFilePath(uri, result)
-                }
                 "openWithSystemViewer" -> {
                     val uri = call.argument<String>("uri")
                     val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
@@ -143,14 +115,6 @@ class MainActivity : FlutterActivity() {
                     val mimeType = call.argument<String>("mimeType") ?: "application/pdf"
                     val packageName = call.argument<String>("packageName") ?: ""
                     openWithSpecificApp(uri, mimeType, packageName, result)
-                }
-                "closePdf" -> {
-                    closePdfRenderer()
-                    result.success(null)
-                }
-                "loadPdfBytes" -> {
-                    val uri = call.argument<String>("uri")
-                    loadPdfBytes(uri, result)
                 }
                 else -> result.notImplemented()
             }
@@ -354,6 +318,7 @@ class MainActivity : FlutterActivity() {
                 Intent.EXTRA_MIME_TYPES,
                 arrayOf("application/pdf", "image/*")
             )
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
@@ -410,68 +375,6 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun pdfPageCount(uriString: String?, result: MethodChannel.Result) {
-        val uri = parseUri(uriString, result) ?: return
-
-        try {
-            val count = withPdfRenderer(uri) { renderer -> renderer.pageCount }
-            result.success(count)
-        } catch (error: SecurityException) {
-            result.error("OPEN_DENIED", "没有权限读取这个 PDF，请重新添加。", null)
-        } catch (error: RuntimeException) {
-            result.error("PDF_READ_FAILED", error.message, null)
-        }
-    }
-
-    private fun renderPdfPage(
-        uriString: String?,
-        pageIndex: Int,
-        maxWidth: Int,
-        result: MethodChannel.Result
-    ) {
-        val uri = parseUri(uriString, result) ?: return
-
-        try {
-            val bytes = withPdfRenderer(uri) { renderer ->
-                if (pageIndex < 0 || pageIndex >= renderer.pageCount) {
-                    throw IllegalArgumentException("PDF 页码无效。")
-                }
-
-                val output = renderer.openPage(pageIndex).use { page ->
-                    val width = maxWidth.coerceIn(320, 1200)
-                    val ratio = page.height.toFloat() / page.width.toFloat()
-                    val height = (width * ratio).toInt().coerceAtLeast(1)
-                    val bitmap = Bitmap.createBitmap(
-                        width,
-                        height,
-                        Bitmap.Config.ARGB_8888
-                    )
-                    bitmap.eraseColor(Color.WHITE)
-
-                    page.render(
-                        bitmap,
-                        null,
-                        null,
-                        PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
-                    )
-
-                    val output = ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-                    bitmap.recycle()
-                    output.toByteArray()
-                }
-
-                output
-            }
-
-            result.success(bytes)
-        } catch (error: SecurityException) {
-            result.error("OPEN_DENIED", "没有权限读取这个 PDF，请重新添加。", null)
-        } catch (error: RuntimeException) {
-            result.error("PDF_RENDER_FAILED", error.message, null)
-        }
-    }
-
     private fun parseUri(
         uriString: String?,
         result: MethodChannel.Result
@@ -482,81 +385,6 @@ class MainActivity : FlutterActivity() {
         }
 
         return Uri.parse(uriString)
-    }
-
-    private fun <T> withPdfRenderer(uri: Uri, block: (PdfRenderer) -> T): T {
-        // 如果缓存的 URI 不同，先关闭旧的
-        if (cachedPdfUri != uri) {
-            closePdfRenderer()
-        }
-
-        // 打开或复用缓存的 renderer
-        if (cachedPdfRenderer == null) {
-            val descriptor = contentResolver.openFileDescriptor(uri, "r")
-                ?: throw IllegalStateException("无法打开 PDF。")
-            cachedPdfDescriptor = descriptor
-            cachedPdfRenderer = PdfRenderer(descriptor)
-            cachedPdfUri = uri
-        }
-
-        return block(cachedPdfRenderer!!)
-    }
-
-    private fun closePdfRenderer() {
-        try {
-            cachedPdfRenderer?.close()
-        } catch (_: Exception) {}
-        try {
-            cachedPdfDescriptor?.close()
-        } catch (_: Exception) {}
-        cachedPdfRenderer = null
-        cachedPdfDescriptor = null
-        cachedPdfUri = null
-    }
-
-    private fun loadPdfBytes(uriString: String?, result: MethodChannel.Result) {
-        if (uriString.isNullOrBlank()) {
-            result.error("INVALID_URI", "PDF 地址无效。", null)
-            return
-        }
-
-        try {
-            val uri = Uri.parse(uriString)
-            val inputStream = contentResolver.openInputStream(uri)
-                ?: throw IllegalStateException("无法打开 PDF 文件。")
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-            result.success(bytes)
-        } catch (error: Exception) {
-            result.error("LOAD_PDF_FAILED", error.message ?: "加载 PDF 失败。", null)
-        }
-    }
-
-    private fun getPdfFilePath(uriString: String?, result: MethodChannel.Result) {
-        if (uriString.isNullOrBlank()) {
-            result.error("INVALID_URI", "PDF 地址无效。", null)
-            return
-        }
-
-        try {
-            val uri = Uri.parse(uriString)
-            val file = File(uri.path ?: "")
-            if (file.exists()) {
-                result.success(file.absolutePath)
-            } else {
-                // 如果是 content URI，需要复制到临时文件
-                val inputStream = contentResolver.openInputStream(uri)
-                    ?: throw IllegalStateException("无法打开 PDF 文件。")
-                val tempFile = File.createTempFile("pdf_", ".pdf", cacheDir)
-                tempFile.outputStream().use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-                inputStream.close()
-                result.success(tempFile.absolutePath)
-            }
-        } catch (error: Exception) {
-            result.error("GET_FILE_PATH_FAILED", error.message ?: "获取文件路径失败。", null)
-        }
     }
 
     private fun openWithSystemViewer(
@@ -653,32 +481,6 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun openDocument(
-        uriString: String?,
-        mimeType: String,
-        result: MethodChannel.Result
-    ) {
-        if (uriString.isNullOrBlank()) {
-            result.error("INVALID_URI", "资料地址无效。", null)
-            return
-        }
-
-        val uri = Uri.parse(uriString)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        try {
-            startActivity(Intent.createChooser(intent, "打开资料"))
-            result.success(null)
-        } catch (error: ActivityNotFoundException) {
-            result.error("NO_VIEWER", "没有找到可打开 PDF 的应用。", null)
-        } catch (error: SecurityException) {
-            result.error("OPEN_DENIED", "没有权限打开这个资料，请重新添加。", null)
-        }
-    }
-
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(
         requestCode: Int,
@@ -702,21 +504,44 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        val uri = data?.data
-        if (uri == null) {
+        val items = mutableListOf<Map<String, Any?>>()
+        val takeFlags = (data?.flags ?: 0) and Intent.FLAG_GRANT_READ_URI_PERMISSION
+
+        // 处理多选：通过 clipData 获取所有 URI
+        val clipData = data?.clipData
+        if (clipData != null && clipData.itemCount > 0) {
+            for (i in 0 until clipData.itemCount) {
+                val uri = clipData.getItemAt(i).uri
+                addUriToItems(uri, takeFlags, items)
+            }
+        } else {
+            // 单选（兼容不支持多选的文件管理器）
+            val uri = data?.data
+            if (uri != null) {
+                addUriToItems(uri, takeFlags, items)
+            }
+        }
+
+        if (items.isEmpty()) {
             result.success(null)
             return
         }
 
-        val takeFlags = (data?.flags ?: 0) and Intent.FLAG_GRANT_READ_URI_PERMISSION
+        result.success(items)
+    }
+
+    private fun addUriToItems(
+        uri: Uri,
+        takeFlags: Int,
+        items: MutableList<Map<String, Any?>>
+    ) {
         if (takeFlags != 0) {
             try {
                 contentResolver.takePersistableUriPermission(uri, takeFlags)
             } catch (_: SecurityException) {
             }
         }
-
-        result.success(
+        items.add(
             mapOf(
                 "uri" to uri.toString(),
                 "name" to displayNameFor(uri),

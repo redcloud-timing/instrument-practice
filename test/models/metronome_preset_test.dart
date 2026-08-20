@@ -33,7 +33,12 @@ void main() {
       const preset = MetronomePreset(
         name: '4/4 标准',
         bpm: 120,
-        beats: [BeatType.accent, BeatType.normal, BeatType.normal, BeatType.normal],
+        beats: [
+          BeatType.accent,
+          BeatType.normal,
+          BeatType.normal,
+          BeatType.normal,
+        ],
         subdivisionBeats: [[], [], [], []],
       );
 
@@ -54,7 +59,7 @@ void main() {
       expect(preset.beats[0], equals(BeatType.accent));
     });
 
-    test('fromMap subdivisionBeats 非 List 时使用空列表', () {
+    test('fromMap subdivisionBeats 非 List 时按拍数补齐空列表', () {
       final preset = MetronomePreset.fromMap({
         'name': 'test',
         'bpm': 100,
@@ -62,7 +67,8 @@ void main() {
         'subdivisionBeats': 'invalid',
       });
 
-      expect(preset.subdivisionBeats, isEmpty);
+      expect(preset.subdivisionBeats, hasLength(4));
+      expect(preset.subdivisionBeats.every((row) => row.isEmpty), isTrue);
     });
   });
 }

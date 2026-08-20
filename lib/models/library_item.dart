@@ -8,10 +8,8 @@ class LibraryItem {
     required this.mimeType,
     required this.addedAtIso,
     required this.openedAtIso,
-    required this.isFavorite,
     required this.note,
     this.sizeBytes,
-    this.lastPageIndex = 0,
   });
 
   final String uri;
@@ -19,10 +17,8 @@ class LibraryItem {
   final String mimeType;
   final String addedAtIso;
   final String openedAtIso;
-  final bool isFavorite;
   final String note;
   final int? sizeBytes;
-  final int lastPageIndex;
 
   bool get isPdf => mimeType == 'application/pdf';
 
@@ -59,10 +55,8 @@ class LibraryItem {
     String? mimeType,
     String? addedAtIso,
     String? openedAtIso,
-    bool? isFavorite,
     String? note,
     int? sizeBytes,
-    int? lastPageIndex,
   }) {
     return LibraryItem(
       uri: uri ?? this.uri,
@@ -70,10 +64,8 @@ class LibraryItem {
       mimeType: mimeType ?? this.mimeType,
       addedAtIso: addedAtIso ?? this.addedAtIso,
       openedAtIso: openedAtIso ?? this.openedAtIso,
-      isFavorite: isFavorite ?? this.isFavorite,
       note: note ?? this.note,
       sizeBytes: sizeBytes ?? this.sizeBytes,
-      lastPageIndex: lastPageIndex ?? this.lastPageIndex,
     );
   }
 
@@ -84,10 +76,8 @@ class LibraryItem {
       'mimeType': mimeType,
       'addedAtIso': addedAtIso,
       'openedAtIso': openedAtIso,
-      'isFavorite': isFavorite,
       'note': note,
       'sizeBytes': sizeBytes,
-      'lastPageIndex': lastPageIndex,
     };
   }
 
@@ -98,10 +88,8 @@ class LibraryItem {
       mimeType: (map['mimeType'] as String? ?? 'application/pdf').trim(),
       addedAtIso: (map['addedAtIso'] as String? ?? '').trim(),
       openedAtIso: (map['openedAtIso'] as String? ?? '').trim(),
-      isFavorite: map['isFavorite'] as bool? ?? false,
       note: (map['note'] as String? ?? '').trim(),
       sizeBytes: _readInt(map['sizeBytes']),
-      lastPageIndex: _readNonNegativeInt(map['lastPageIndex']),
     );
   }
 
@@ -116,10 +104,8 @@ class LibraryItem {
       mimeType: (map['mimeType'] as String? ?? 'application/pdf').trim(),
       addedAtIso: addedAtIso,
       openedAtIso: openedAtIso,
-      isFavorite: false,
       note: '',
       sizeBytes: _readInt(map['sizeBytes']),
-      lastPageIndex: 0,
     );
   }
 
@@ -127,11 +113,5 @@ class LibraryItem {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return null;
-  }
-
-  static int _readNonNegativeInt(Object? value) {
-    final parsed = _readInt(value) ?? 0;
-    if (parsed < 0) return 0;
-    return parsed;
   }
 }

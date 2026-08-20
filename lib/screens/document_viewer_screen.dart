@@ -5,9 +5,10 @@ import 'package:provider/provider.dart';
 
 import '../controllers/library_controller.dart';
 import '../models/library_item.dart';
+import '../routes/app_routes.dart';
 import '../services/database_service.dart';
 import '../services/document_library_service.dart';
-import 'text_edit_screen.dart';
+import '../utils/app_constants.dart';
 
 class DocumentViewerScreen extends StatefulWidget {
   const DocumentViewerScreen({super.key, required this.itemUri});
@@ -22,14 +23,13 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   String? _loadedUri;
 
   Future<void> _editNote(BuildContext context, LibraryItem item) async {
-    final result = await Navigator.push<String>(
+    final result = await Navigator.pushNamed<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TextEditScreen(
-          title: '乐谱笔记',
-          initialText: item.note,
-          hintText: '写下指法、节奏、换气或练习提醒',
-        ),
+      AppRoutes.textEdit,
+      arguments: TextEditRouteArguments(
+        title: '乐谱笔记',
+        initialText: item.note,
+        hintText: '写下指法、节奏、换气或练习提醒',
       ),
     );
 
@@ -45,7 +45,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       final dbService = context.read<DatabaseService>();
 
       // 读取默认应用
-      final defaultPackage = await dbService.getSetting('default_pdf_viewer');
+      final defaultPackage = await dbService.getSetting(
+        AppConstants.defaultPdfViewerKey,
+      );
 
       if (defaultPackage != null && defaultPackage.isNotEmpty) {
         // 有默认应用，直接打开
@@ -154,7 +156,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     if (selected != null && mounted) {
       final packageName = selected['packageName'] ?? '';
       // 保存为默认应用
-      await dbService.setSetting('default_pdf_viewer', packageName);
+      await dbService.setSetting(AppConstants.defaultPdfViewerKey, packageName);
       // 打开 PDF
       await docService.openWithSpecificApp(item, packageName);
       // 自动返回「乐谱」界面

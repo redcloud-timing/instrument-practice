@@ -6,6 +6,7 @@ import '../models/category.dart';
 import '../models/library_item.dart';
 import '../services/database_service.dart';
 import '../services/document_library_service.dart';
+import '../utils/app_constants.dart';
 
 /// 乐谱库控制器
 ///
@@ -24,9 +25,6 @@ class LibraryController extends ChangeNotifier {
   final DatabaseService _databaseService;
   final DocumentLibraryService _documentService;
   DocumentLibraryService get documentService => _documentService;
-
-  static const _documentsKey = 'library_documents_v1';
-  static const _maxItems = 60;
 
   bool isLoading = true;
   bool isBusy = false;
@@ -49,7 +47,9 @@ class LibraryController extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    final raw = await _databaseService.getSetting(_documentsKey);
+    final raw = await _databaseService.getSetting(
+      AppConstants.libraryDocumentsKey,
+    );
     if (raw != null) {
       try {
         final decoded = jsonDecode(raw);
@@ -70,44 +70,44 @@ class LibraryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<LibraryItem?> addDocumentFromDevice() async {
-    if (isBusy) return null;
+  Future<List<LibraryItem>> addDocumentsFromDevice() async {
+    if (isBusy) return [];
 
     isBusy = true;
     notifyListeners();
 
     try {
-      final picked = await _documentService.pickDocument();
-      if (picked == null) return null;
+      final pickedList = await _documentService.pickDocuments();
+      if (pickedList.isEmpty) return [];
 
-      final existing = itemByUri(picked.uri);
       final now = DateTime.now().toIso8601String();
-      final next = picked.copyWith(
-        addedAtIso: existing?.addedAtIso ?? now,
-        openedAtIso: now,
-        isFavorite: existing?.isFavorite ?? false,
-        note: existing?.note ?? '',
-      );
+      final added = <LibraryItem>[];
 
-      items = [
-        next,
-        for (final item in items)
-          if (item.uri != next.uri) item,
-      ];
+      for (final picked in pickedList) {
+        final existing = itemByUri(picked.uri);
+        final next = picked.copyWith(
+          addedAtIso: existing?.addedAtIso ?? now,
+          openedAtIso: now,
+          note: existing?.note ?? '',
+        );
+
+        items = [
+          next,
+          for (final item in items)
+            if (item.uri != next.uri) item,
+        ];
+        added.add(next);
+      }
+
       _trimItems();
       notifyListeners();
       await _save();
 
-      return next;
+      return added;
     } finally {
       isBusy = false;
       notifyListeners();
     }
-  }
-
-  Future<void> openItem(LibraryItem item) async {
-    await markOpened(item);
-    await _documentService.openDocument(item);
   }
 
   Future<void> markOpened(LibraryItem item) async {
@@ -162,23 +162,6 @@ class LibraryController extends ChangeNotifier {
     await _save();
   }
 
-  Future<void> saveLastPageIndex(LibraryItem item, int pageIndex) async {
-    final nextPageIndex = pageIndex < 0 ? 0 : pageIndex;
-    final existing = itemByUri(item.uri);
-    if (existing == null || existing.lastPageIndex == nextPageIndex) return;
-
-    items = [
-      for (final current in items)
-        if (current.uri == item.uri)
-          current.copyWith(lastPageIndex: nextPageIndex)
-        else
-          current,
-    ];
-
-    notifyListeners();
-    await _save();
-  }
-
   Future<void> deleteItem(LibraryItem item) async {
     items = [
       for (final current in items)
@@ -193,23 +176,15 @@ class LibraryController extends ChangeNotifier {
   }
 
   void _trimItems() {
-    if (items.length <= _maxItems) {
-      items.sort(_sortByOpenedAtDesc);
-      return;
+    items.sort(_sortByOpenedAtDesc);
+    if (items.length > AppConstants.maxLibraryItems) {
+      items = items.take(AppConstants.maxLibraryItems).toList();
     }
-
-    final favorites = items.where((item) => item.isFavorite).toList()
-      ..sort(_sortByOpenedAtDesc);
-    final others = items.where((item) => !item.isFavorite).toList()
-      ..sort(_sortByOpenedAtDesc);
-    final otherLimit = _maxItems - favorites.length;
-
-    items = [...favorites, if (otherLimit > 0) ...others.take(otherLimit)];
   }
 
   Future<void> _save() async {
     await _databaseService.setSetting(
-      _documentsKey,
+      AppConstants.libraryDocumentsKey,
       jsonEncode(items.map((item) => item.toMap()).toList()),
     );
   }
@@ -222,8 +197,6 @@ class LibraryController extends ChangeNotifier {
 
   // ==================== 栏目管理 ====================
 
-  static const _allCategorySortOrderKey = 'category_all_sort_order';
-
   List<LibraryCategory> _categories = [];
   List<LibraryCategory> get categories => _categories;
 
@@ -235,14 +208,16 @@ class LibraryController extends ChangeNotifier {
 
   /// 获取"全部"的 sort_order
   Future<int> getAllCategorySortOrder() async {
-    final value = await _databaseService.getSetting(_allCategorySortOrderKey);
+    final value = await _databaseService.getSetting(
+      AppConstants.allCategorySortOrderKey,
+    );
     return int.tryParse(value ?? '') ?? -1;
   }
 
   /// 设置"全部"的 sort_order
   Future<void> setAllCategorySortOrder(int order) async {
     await _databaseService.setSetting(
-      _allCategorySortOrderKey,
+      AppConstants.allCategorySortOrderKey,
       order.toString(),
     );
   }
@@ -294,8 +269,9 @@ class LibraryController extends ChangeNotifier {
     if (index1 < 0 ||
         index2 < 0 ||
         index1 >= _categories.length ||
-        index2 >= _categories.length)
+        index2 >= _categories.length) {
       return;
+    }
     final cat1 = _categories[index1];
     final cat2 = _categories[index2];
     await _databaseService.swapCategorySortOrder(
@@ -326,13 +302,6 @@ class LibraryController extends ChangeNotifier {
   /// 获取指定乐谱所属的栏目 ID 列表
   Future<List<int>> getCategoryIdsForItem(String itemUri) async {
     return await _databaseService.getCategoryIdsForItem(itemUri);
-  }
-
-  /// 获取指定栏目的乐谱列表
-  List<LibraryItem> getItemsByCategory(int categoryId) {
-    // 这里需要同步获取，但数据库是异步的
-    // 所以我们在 UI 层异步获取 itemUri 列表，然后过滤
-    return items; // 实际过滤在 UI 层完成
   }
 }
 

@@ -9,6 +9,7 @@ import '../models/pitch_reading.dart';
 import '../models/pitch_trace_recording.dart';
 import '../services/database_service.dart';
 import '../services/pitch_trace_service.dart';
+import '../utils/app_constants.dart';
 import '../utils/app_lifecycle_observer.dart';
 
 /// 听音控制器
@@ -25,14 +26,12 @@ import '../utils/app_lifecycle_observer.dart';
 class PitchTraceController extends ChangeNotifier {
   PitchTraceController(this._databaseService, this._pitchTraceService);
 
-  static const _settingsKey = 'pitch_trace_settings_v1';
-  static const _recordingMetadataKey = 'pitch_trace_recording_metadata_v1';
-  static const defaultMinFrequency = 80.0;
-  static const defaultMaxFrequency = 2200.0;
-  static const minAllowedFrequency = 80.0;
-  static const maxAllowedFrequency = 2600.0;
-  static const defaultVisibleDurationMs = 8000.0;
-  static const defaultMidiSpan = 24.0;
+  static const defaultMinFrequency = AppConstants.defaultMinFrequency;
+  static const defaultMaxFrequency = AppConstants.defaultMaxFrequency;
+  static const minAllowedFrequency = AppConstants.minAllowedFrequency;
+  static const maxAllowedFrequency = AppConstants.maxAllowedFrequency;
+  static const defaultVisibleDurationMs = AppConstants.defaultVisibleDurationMs;
+  static const defaultMidiSpan = AppConstants.defaultMidiSpan;
   static const visibleDurationStepsMs = [
     3000.0,
     4000.0,
@@ -148,7 +147,9 @@ class PitchTraceController extends ChangeNotifier {
   }
 
   Future<void> _loadSettings() async {
-    final rawSettings = await _databaseService.getSetting(_settingsKey);
+    final rawSettings = await _databaseService.getSetting(
+      AppConstants.pitchTraceSettingsKey,
+    );
     if (rawSettings == null) return;
 
     try {
@@ -208,7 +209,10 @@ class PitchTraceController extends ChangeNotifier {
       'windowSize': _windowSize,
       'overlapRatio': _overlapRatio,
     };
-    await _databaseService.setSetting(_settingsKey, jsonEncode(map));
+    await _databaseService.setSetting(
+      AppConstants.pitchTraceSettingsKey,
+      jsonEncode(map),
+    );
   }
 
   void _scheduleSettingsSave() {
@@ -386,7 +390,7 @@ class PitchTraceController extends ChangeNotifier {
               )
             : value;
         _history.add(adjusted);
-        final cutoff = adjusted.timestampMillis - 300000;
+        final cutoff = adjusted.timestampMillis - AppConstants.historyWindowMs;
         _history.removeWhere((r) => r.timestampMillis < cutoff);
         // 硬性容量上限：时间窗口移除之外的安全网
         if (_history.length > _maxHistoryLength) {
@@ -572,7 +576,7 @@ class PitchTraceController extends ChangeNotifier {
 
   Future<void> _loadRecordingMetadata() async {
     final rawMetadata = await _databaseService.getSetting(
-      _recordingMetadataKey,
+      AppConstants.recordingMetadataKey,
     );
     if (rawMetadata == null) return;
 
@@ -602,7 +606,7 @@ class PitchTraceController extends ChangeNotifier {
           .map((entry) => MapEntry(entry.key, entry.value.toJson())),
     );
     await _databaseService.setSetting(
-      _recordingMetadataKey,
+      AppConstants.recordingMetadataKey,
       jsonEncode(metadata),
     );
   }

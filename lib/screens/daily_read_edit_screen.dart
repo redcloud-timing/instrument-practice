@@ -43,7 +43,7 @@ class _DailyReadEditScreenState extends State<DailyReadEditScreen> {
 
     _hydrating = true;
     _textController.text = text;
-    _textController.selection = TextSelection.collapsed(offset: text.length);
+    _moveCursorToTop(text);
     _lastEditingText = text;
     _lastSavedText = PracticeController.normalizeIndentedLines(
       text,
@@ -51,6 +51,17 @@ class _DailyReadEditScreenState extends State<DailyReadEditScreen> {
     );
     _hydrating = false;
     _loaded = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _moveCursorToTop(_textController.text);
+    });
+  }
+
+  void _moveCursorToTop(String text) {
+    const indent = PracticeController.dailyReadFirstLineIndent;
+    final offset = text.startsWith(indent) ? indent.length : 0;
+    _textController.selection = TextSelection.collapsed(offset: offset);
   }
 
   @override
